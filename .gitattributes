@@ -1,0 +1,8 @@
+# Line endings: the repository is LF, checkouts get LF, Windows-only script types get CRLF.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.woff2 binary

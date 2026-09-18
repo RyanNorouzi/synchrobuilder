@@ -16,6 +16,16 @@ export default {
   appliesTo: (rel) => /\.(mjs|cjs|js|jsx|ts|tsx|mts|json|jsonc|yml|yaml|toml|ini|cfg|env|py|rb|go|rs|java|kt|cs|php|sh|ps1)$/i.test(rel) && !/(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(rel),
   check({ relPath, content }) {
     const findings = [];
+    const lines = content.split('\n');
+    // A path inside a comment is documentation (an example, an explanation), not something the program uses.
+    const commented = new Set();
+    let inBlock = false;
+    lines.forEach((text, i) => {
+      const trimmed = text.trim();
+      if (inBlock) { commented.add(i + 1); if (trimmed.includes('*/')) inBlock = false; return; }
+      if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('*')) { commented.add(i + 1); return; }
+      if (/^\s*\/\*/.test(text)) { commented.add(i + 1); if (!trimmed.includes('*/')) inBlock = true; }
+    });
     for (const { re, what } of PATTERNS) {
       re.lastIndex = 0;
       let m;
@@ -23,7 +33,9 @@ export default {
       while ((m = re.exec(content)) && count < 20) {
         count++;
         const offset = m.index + (m[1] ? m[1].length : 0);
-        findings.push({ file: relPath, line: lineOf(content, offset), message: `Contains ${what}: ${m[2] || m[0].trim()}`, fix: 'Derive the path at runtime (os.homedir(), os.tmpdir(), path.join) or move it to configuration that each machine sets.' });
+        const line = lineOf(content, offset);
+        if (commented.has(line)) continue;
+        findings.push({ file: relPath, line, message: `Contains ${what}: ${m[2] || m[0].trim()}`, fix: 'Derive the path at runtime (os.homedir(), os.tmpdir(), path.join) or move it to configuration that each machine sets.' });
       }
     }
     return findings;

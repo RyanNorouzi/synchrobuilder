@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "audit": {
+    "ignore": [
+      "examples/demo-repo/**",
+      "tests/**",
+      "docs/research/**",
+      "site/dist/**",
+      "plugins/synchrobuilder/lib/audit/rules/**",
+      "plugins/synchrobuilder/lib/fix/**"
+    ]
+  },
+  "contracts": {
+    "paths": [
+      "plugins/synchrobuilder/lib/core/schema.mjs",
+      "plugins/synchrobuilder/lib/transport/interface.mjs",
+      "plugins/synchrobuilder/lib/state/layout.mjs",
+      "plugins/synchrobuilder/lib/manifest/schema.mjs",
+      "docs/commands.md"
+    ]
+  },
+  "collision": {
+    "mode": "warn",
+    "windowMinutes": 30
+  }
+}

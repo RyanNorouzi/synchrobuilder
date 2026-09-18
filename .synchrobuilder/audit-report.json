@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "generatedAt": "2026-09-18T17:56:30.678Z",
+  "root": "/Users/ryan/SynchroBuilder",
+  "score": 100,
+  "fileCount": 154,
+  "rules": [
+    "case-duplicates",
+    "exec-bits-symlinks",
+    "hardcoded-paths",
+    "illegal-filenames",
+    "import-casing",
+    "line-endings",
+    "native-deps",
+    "path-concat",
+    "python-assumptions",
+    "readme-one-os",
+    "shell-scripts",
+    "unix-scripts"
+  ],
+  "findings": []
+}

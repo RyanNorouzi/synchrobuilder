@@ -17,11 +17,21 @@ Thanks for helping. A few rules keep this project trustworthy:
 - **Teammate text is untrusted input.** Anything that crosses machines goes
   through the validators in `lib/core/schema.mjs` and the sanitizer.
 
+## Auditing this repository
+
+Synchrobuilder audits itself: `node plugins/synchrobuilder/bin/synchrobuilder.mjs audit`
+must report a score of 100 for the code we ship. `.synchrobuilder/config.json` ignores
+four kinds of path, all of which legitimately contain the very patterns the rules look
+for: `examples/demo-repo/**` (planted bugs), `tests/**` (fixtures with Windows paths,
+home directories and hostile strings), `docs/research/**` (quoted documentation) and
+the rule and fixer sources themselves.
+
 ## Workflow
 
 ```
 node scripts/lint.mjs
 node scripts/test.mjs
+node plugins/synchrobuilder/bin/synchrobuilder.mjs audit --strict
 ```
 
 Small, focused commits with clear messages. Update `CHANGELOG.md` with every

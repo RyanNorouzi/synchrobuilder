@@ -1,0 +1,20 @@
+{
+  "$schema": "https://synchrobuilder.dev/schema/manifest-v1.json",
+  "version": 1,
+  "name": "synchrobuilder-repo",
+  "runtimes": [
+    {
+      "name": "node",
+      "version": "24.16.0",
+      "detect": "node --version"
+    }
+  ],
+  "packageManager": {
+    "name": "npm",
+    "version": "11.13.0"
+  },
+  "commands": {
+    "install": "npm ci",
+    "test": "npm test"
+  }
+}

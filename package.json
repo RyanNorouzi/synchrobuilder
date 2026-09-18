@@ -9,6 +9,7 @@
     "test": "node scripts/test.mjs",
     "lint": "node scripts/lint.mjs",
     "skills": "node scripts/gen-skills.mjs",
-    "site": "node site/build.mjs && node site/check.mjs"
+    "site": "node site/build.mjs",
+    "site:check": "node site/check.mjs"
   }
 }
