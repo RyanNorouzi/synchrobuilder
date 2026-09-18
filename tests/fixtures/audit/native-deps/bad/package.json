@@ -1,0 +1,16 @@
+{
+  "name": "bad-native",
+  "private": true,
+  "dependencies": {
+    "express": "^4.19.0",
+    "sharp": "^0.33.0",
+    "better-sqlite3": "^11.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.0"
+  },
+  "optionalDependencies": {
+    "fsevents": "^2.3.3",
+    "@rollup/rollup-darwin-arm64": "^4.20.0"
+  }
+}
