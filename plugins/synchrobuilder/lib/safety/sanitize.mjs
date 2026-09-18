@@ -1,25 +1,69 @@
-// PLACEHOLDER: the safety agent replaces this file with the full ADR-005 sanitizer. Until then this is a conservative minimum
-// (escape, strip controls, cap length) so callers have a working interface.
-//   sanitizeText(text, { maxChars = 400, maxLines = 6 }) -> string   (one or more lines, each already safe to prefix with '  | ')
-//   sanitizeLine(text, maxChars) -> string                           (single line)
+// The ADR-005 free-text sanitizer, applied on the reader side at sync time to every teammate string that is not an
+// identifier (identifiers are validated or rejected in lib/core/schema.mjs and never cleaned).
+//   sanitizeText(text, { maxChars = 400, maxLines = 6 }) -> string   (lines joined with LF, each safe to prefix with '  | ')
+//   sanitizeLine(text, maxChars = 140) -> string                      (single line)
+//   sanitizeLines(text, opts) -> string[]                             (same as sanitizeText, split)
+//   sanitizeWithStats(text, opts) -> { text, lines, stats }            (for the sync loop's local counters, ADR-005 step 17)
+// Order matters and follows ADR-005 section 2 exactly: pre-cap, NFC, escapes, controls, format chars, whitespace,
+// line shaping, markup, URLs, secrets, code-point cap, HTML escape. Everything is a linear scan over a pre-capped string.
 import { LIMITS } from '../core/schema.mjs';
+import { normalizeUnicode, stripEscapes, stripControls, stripInvisible, splitLines } from './strip.mjs';
+import { neutralizeLine, defangUrls, escapeHtml } from './markup.mjs';
+import { redact } from './redact.mjs';
+import { capCodePoints, preTruncate } from './caps.mjs';
 
-const CONTROL = /[\x00-\x08\x0b-\x1f\x7f-\x9f]/g;
-const FORMAT = /\p{Cf}/gu;
+export const ELIDED_MARK = ' ⋯';
 
-export function sanitizeLine(text, maxChars = LIMITS.task) {
-  let s = String(text ?? '').normalize('NFC').replace(CONTROL, '').replace(FORMAT, '').replace(/\s+/g, ' ').trim();
-  s = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const cps = Array.from(s);
-  return cps.length > maxChars ? cps.slice(0, maxChars).join('') + ' ⋯' : s;
+function emptyStats() {
+  return { rejected: false, escapes: 0, controls: 0, invisible: 0, fences: 0, headings: 0, rules: 0, roleLabels: 0, markers: 0, urls: 0, urlsRemoved: 0, redactions: 0, linesElided: 0, linesCapped: 0, truncated: false };
 }
 
-export function sanitizeText(text, { maxChars = LIMITS.message, maxLines = LIMITS.messageLines } = {}) {
-  const lines = String(text ?? '').replace(/\r\n?/g, '\n').split('\n').map((l) => sanitizeLine(l, LIMITS.lineChars)).filter(Boolean);
-  const kept = lines.slice(0, maxLines);
-  if (lines.length > maxLines) kept.push(`⋯ ${lines.length - maxLines} lines elided ⋯`);
-  let out = kept.join('\n');
-  const cps = Array.from(out);
-  if (cps.length > maxChars) out = cps.slice(0, maxChars).join('') + ' ⋯';
-  return out;
+function capLine(line, lineChars, stats) {
+  const r = capCodePoints(line, lineChars);
+  if (!r.truncated) return line;
+  stats.linesCapped++;
+  return r.text + ELIDED_MARK;
+}
+
+/** Full pipeline with counters. Non-strings are rejected (empty result, stats.rejected = true). */
+export function sanitizeWithStats(text, { maxChars = LIMITS.message, maxLines = LIMITS.messageLines, lineChars = LIMITS.lineChars } = {}) {
+  const stats = emptyStats();
+  if (typeof text !== 'string') { stats.rejected = true; return { text: '', lines: [], stats }; }
+  // Steps 2 to 6: bound the work, then remove everything a terminal or a tokenizer would interpret.
+  let s = normalizeUnicode(preTruncate(text, Math.max(64, maxChars * 4)));
+  const esc = stripEscapes(s); stats.escapes = esc.removed;
+  const ctl = stripControls(esc.text); stats.controls = ctl.removed;
+  const inv = stripInvisible(ctl.text); stats.invisible = inv.removed;
+  // Step 7 and 8: whitespace, then line shaping. Single-line fields fold LF into a space before any line rule runs.
+  let lines = splitLines(inv.text);
+  if (maxLines <= 1 && lines.length > 1) lines = [lines.join(' ')];
+  let elided = 0;
+  if (lines.length > maxLines) { elided = lines.length - maxLines; lines = lines.slice(0, maxLines); }
+  stats.linesElided = elided;
+  // Steps 9 and 10 per line, step 11 over the whole field so a PEM block that spans lines is still one match.
+  const urlState = { count: 0 };
+  const out = [];
+  for (const raw of lines) {
+    const shaped = neutralizeLine(capLine(raw, lineChars, stats), stats);
+    if (shaped === null) continue;
+    out.push(defangUrls(shaped, urlState, stats));
+  }
+  if (elided) out.push(`⋯ ${elided} lines elided ⋯`);
+  const red = redact(out.join('\n'));
+  stats.redactions = red.count;
+  // Steps 12 and 13. A cut that lands just after a LF would leave the marker alone on a line starting with a space,
+  // so trailing whitespace goes before the marker is appended.
+  const capped = capCodePoints(red.text, maxChars);
+  stats.truncated = capped.truncated;
+  const escaped = escapeHtml(capped.truncated ? capped.text.trimEnd() + ELIDED_MARK : capped.text);
+  return { text: escaped, lines: escaped ? escaped.split('\n') : [], stats };
+}
+
+export function sanitizeText(text, opts) { return sanitizeWithStats(text, opts).text; }
+
+export function sanitizeLines(text, opts) { return sanitizeWithStats(text, opts).lines; }
+
+/** Single-line fields (task summary, board title, handoff items): LF becomes a space, one cap in code points. */
+export function sanitizeLine(text, maxChars = LIMITS.task) {
+  return sanitizeWithStats(text, { maxChars, maxLines: 1, lineChars: Infinity }).text;
 }
