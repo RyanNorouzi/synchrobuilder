@@ -1,0 +1,161 @@
+// Generate a GitHub Actions workflow that proves the project installs, builds, tests and answers its health check
+// on ubuntu, macos and windows. The badge it prints only says "verified" when that workflow passes.
+import { forOs, currentOs } from '../manifest/schema.mjs';
+import { tokenizeCommand } from '../manifest/io.mjs';
+
+const RUNNERS = [
+  { os: 'ubuntu', runsOn: 'ubuntu-latest' },
+  { os: 'macos', runsOn: 'macos-latest' },
+  { os: 'windows', runsOn: 'windows-latest' },
+];
+
+const q = (s) => `'${String(s).replace(/'/g, "''")}'`;
+
+function serviceBlock(services) {
+  const supported = services.filter((s) => s.image || /postgres|mysql|redis|mongo/i.test(s.name));
+  if (!supported.length) return '';
+  const lines = ['    services:'];
+  for (const s of supported) {
+    const image = s.image || `${s.name.toLowerCase()}:${s.version || 'latest'}`;
+    lines.push(`      ${s.name.toLowerCase().replace(/[^a-z0-9]/g, '')}:`);
+    lines.push(`        image: ${image}`);
+    if (s.port) lines.push(`        ports: ['${s.port}:${s.port}']`);
+    if (/postgres/i.test(s.name)) lines.push('        env:', '          POSTGRES_PASSWORD: postgres', '        options: >-', '          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5');
+  }
+  return lines.join('\n') + '\n';
+}
+
+/**
+ * Start the app in the background before an http health check. The command is tokenized here, at generation time,
+ * and spawned by node without a shell, so the same step behaves identically on the three runners.
+ */
+function startStep(manifest) {
+  if (!manifest.healthCheck || manifest.healthCheck.type !== 'http') return '';
+  const perOs = new Map(RUNNERS.map((r) => [r.os, forOs(manifest, r.os).commands.start]));
+  const steps = [];
+  const distinct = [...new Set([...perOs.values()].filter(Boolean))];
+  const emit = (command, osName) => {
+    const argv = tokenizeCommand(command);
+    if (!argv.length) return;
+    steps.push(`      - name: Start the app in the background${osName ? ` (${osName})` : ''}
+${osName ? `        if: matrix.os == ${q(osName)}\n` : ''}        env:
+          SB_START: ${q(JSON.stringify(argv))}
+        run: node -e "const{spawn}=require('node:child_process');const a=JSON.parse(process.env.SB_START);const c=spawn(a[0],a.slice(1),{detached:true,stdio:'ignore'});c.unref();console.log('started',a.join(' '))"
+`);
+  };
+  if (distinct.length === 1 && [...perOs.values()].every(Boolean)) emit(distinct[0], null);
+  else for (const [osName, command] of perOs) if (command) emit(command, osName);
+  return steps.join('');
+}
+
+function healthStep(healthCheck) {
+  if (!healthCheck) return '';
+  if (healthCheck.type === 'http') {
+    const url = healthCheck.url;
+    const expect = healthCheck.expectStatus || 200;
+    const seconds = healthCheck.timeoutSeconds || 60;
+    // A node one-liner runs identically under bash and PowerShell; the URL travels in an environment variable so
+    // no quoting in the YAML can break it.
+    return `      - name: Health check
+        env:
+          SB_HEALTH_URL: ${q(url)}
+          SB_HEALTH_STATUS: '${expect}'
+          SB_HEALTH_TIMEOUT: '${seconds}'
+        run: node -e "const u=process.env.SB_HEALTH_URL,s=Number(process.env.SB_HEALTH_STATUS),d=Date.now()+Number(process.env.SB_HEALTH_TIMEOUT)*1000;const go=()=>fetch(u).then(r=>{if(r.status===s){console.log('health ok',r.status);process.exit(0)}throw new Error('status '+r.status)}).catch(e=>{if(Date.now()>d){console.error('health check failed:',e.message);process.exit(1)}setTimeout(go,2000)});go()"
+`;
+  }
+  return `      - name: Health check
+        run: ${healthCheck.command}
+`;
+}
+
+/** Steps that differ per OS are emitted with an `if:` guard rather than separate jobs, so the matrix stays readable. */
+function commandSteps(manifest) {
+  const perOs = new Map(RUNNERS.map((r) => [r.os, forOs(manifest, r.os).commands]));
+  const names = ['install', 'build', 'migrate', 'seed', 'test'];
+  const out = [];
+  for (const name of names) {
+    const values = new Map();
+    for (const [os, commands] of perOs) if (commands[name]) values.set(os, commands[name]);
+    if (!values.size) continue;
+    const distinct = [...new Set(values.values())];
+    if (distinct.length === 1 && values.size === RUNNERS.length) {
+      out.push(`      - name: ${name[0].toUpperCase()}${name.slice(1)}\n        run: ${distinct[0]}\n`);
+    } else {
+      for (const [os, command] of values) {
+        out.push(`      - name: ${name[0].toUpperCase()}${name.slice(1)} (${os})\n        if: matrix.os == ${q(os)}\n        run: ${command}\n`);
+      }
+    }
+  }
+  return out.join('');
+}
+
+export function generateWorkflow(manifest, { name = 'synchrobuilder-verify' } = {}) {
+  const node = (manifest.runtimes || []).find((r) => r.name === 'node');
+  const python = (manifest.runtimes || []).find((r) => r.name === 'python');
+  const pm = manifest.packageManager;
+  const lines = [];
+  lines.push(`# Generated by synchrobuilder ci from synchrobuilder.json.`);
+  lines.push(`# Proves the project installs, builds, tests and answers its health check on ubuntu, macos and windows.`);
+  lines.push(`name: verify`);
+  lines.push(`on:`);
+  lines.push(`  push:`);
+  lines.push(`    branches: [main, master]`);
+  lines.push(`  pull_request:`);
+  lines.push(`  workflow_dispatch:`);
+  lines.push(`jobs:`);
+  lines.push(`  verify:`);
+  lines.push(`    name: \${{ matrix.os }}`);
+  lines.push(`    runs-on: \${{ matrix.runs-on }}`);
+  lines.push(`    strategy:`);
+  lines.push(`      fail-fast: false`);
+  lines.push(`      matrix:`);
+  lines.push(`        include:`);
+  for (const r of RUNNERS) lines.push(`          - { os: ${r.os}, runs-on: ${r.runsOn} }`);
+  const services = serviceBlock(manifest.services || []);
+  if (services) {
+    lines.push(`    # Service containers run on the Linux runner only; macOS and Windows runners have no Docker daemon.`);
+    lines.push(`    # On those, start the service yourself or mark the job as Linux-only.`);
+  }
+  lines.push(`    steps:`);
+  lines.push(`      - uses: actions/checkout@v4`);
+  if (node) {
+    lines.push(`      - uses: actions/setup-node@v4`);
+    lines.push(`        with:`);
+    lines.push(`          node-version: ${q(node.version)}`);
+  }
+  if (python) {
+    lines.push(`      - uses: actions/setup-python@v5`);
+    lines.push(`        with:`);
+    lines.push(`          python-version: ${q(python.version)}`);
+  }
+  if (pm && ['pnpm', 'yarn'].includes(pm.name)) {
+    lines.push(`      - name: Enable ${pm.name}${pm.version ? ` ${pm.version}` : ''}`);
+    lines.push(`        run: corepack enable && corepack prepare ${pm.name}${pm.version ? `@${pm.version}` : ''} --activate`);
+  }
+  for (const e of (manifest.env || []).filter((x) => x.required !== false)) {
+    lines.push(`      # ${e.name}: ${e.description || 'required by the project'} — set it as a repository secret or here.`);
+  }
+  let text = lines.join('\n') + '\n';
+  if (services) text = text.replace('    steps:\n', `${services}    steps:\n`);
+  text += commandSteps(manifest);
+  text += startStep(manifest);
+  text += healthStep(manifest.healthCheck);
+  return text;
+}
+
+export function badgeSnippet(manifest, { owner = 'OWNER', repo = 'REPO', workflow = 'verify.yml' } = {}) {
+  const label = manifest && manifest.name ? manifest.name : 'this project';
+  return [
+    `[![verify](https://github.com/${owner}/${repo}/actions/workflows/${workflow}/badge.svg)](https://github.com/${owner}/${repo}/actions/workflows/${workflow})`,
+    '',
+    `The badge shows green only while the workflow passes, which means ${label} installed, built, tested and answered its health check on ubuntu, macos and windows.`,
+  ].join('\n');
+}
+
+export function inferRepoSlug(remoteUrl) {
+  const m = String(remoteUrl || '').match(/[:/]([^/:]+)\/([^/]+?)(?:\.git)?\/?$/);
+  return m ? { owner: m[1], repo: m[2] } : { owner: 'OWNER', repo: 'REPO' };
+}
+
+export const DEFAULT_OS = currentOs();
