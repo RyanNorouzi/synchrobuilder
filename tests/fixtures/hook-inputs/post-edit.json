@@ -1,0 +1,23 @@
+{
+  "session_id": "9de2bb7d-e402-43f8-b037-88beefa04181",
+  "transcript_path": "~/.claude/projects/<project>/<session>.jsonl",
+  "cwd": "<scratch>/hooktest/project",
+  "prompt_id": "7e63c69d-572c-4733-a080-6f37925a9405",
+  "permission_mode": "acceptEdits",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "<scratch>/hooktest/project/hello.txt",
+    "content": "hi"
+  },
+  "tool_response": {
+    "type": "create",
+    "filePath": "<scratch>/hooktest/project/hello.txt",
+    "content": "hi",
+    "structuredPatch": [],
+    "originalFile": null,
+    "userModified": false
+  },
+  "tool_use_id": "toolu_01BKVYEch4ismSxZKhRsJKBs",
+  "duration_ms": 1
+}

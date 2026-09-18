@@ -1,0 +1,14 @@
+{
+  "name": "synchrobuilder-repo",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node scripts/test.mjs",
+    "lint": "node scripts/lint.mjs",
+    "skills": "node scripts/gen-skills.mjs",
+    "site": "node site/build.mjs && node site/check.mjs"
+  }
+}

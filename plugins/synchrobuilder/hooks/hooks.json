@@ -1,0 +1,23 @@
+{
+  "description": "Synchrobuilder: portability guard, team digest, collision warnings, handoff staging. Every hook is a Node process in exec form; all fail open.",
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/run.mjs", "session-start"], "timeout": 5, "statusMessage": "Synchrobuilder: reading team state" } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/run.mjs", "prompt"], "timeout": 5 } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "Edit|Write|NotebookEdit", "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/run.mjs", "pre-edit"], "timeout": 5 } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Edit|Write|NotebookEdit", "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/run.mjs", "post-edit"], "timeout": 10 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/run.mjs", "stop"], "timeout": 10 } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/run.mjs", "session-end"], "timeout": 5 } ] }
+    ]
+  }
+}

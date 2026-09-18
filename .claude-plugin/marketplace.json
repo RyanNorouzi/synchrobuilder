@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "synchrobuilder",
+  "description": "Synchrobuilder: multiplayer Claude Code for teams on any laptop. Portability audit, fix, guard, setup and doctor, plus serverless team presence over your git remote.",
+  "owner": { "name": "Synchrobuilder contributors" },
+  "plugins": [
+    {
+      "name": "synchrobuilder",
+      "description": "Multiplayer Claude Code for teams on any laptop. No server, safe by design.",
+      "source": "./plugins/synchrobuilder",
+      "category": "development",
+      "license": "MIT",
+      "keywords": ["portability", "cross-platform", "windows", "team", "multiplayer", "presence", "git"]
+    }
+  ]
+}

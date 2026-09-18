@@ -1,0 +1,9 @@
+{
+  "name": "synchrobuilder",
+  "displayName": "Synchrobuilder",
+  "version": "0.1.0",
+  "description": "Multiplayer Claude Code for teams on any laptop. Keeps projects running on macOS, Windows and Linux while Claude writes code, and lets teammates' Claudes see each other through the git remote you already have. No server, safe by design.",
+  "author": { "name": "Synchrobuilder contributors" },
+  "license": "MIT",
+  "keywords": ["portability", "cross-platform", "windows", "team", "multiplayer", "presence", "git"]
+}

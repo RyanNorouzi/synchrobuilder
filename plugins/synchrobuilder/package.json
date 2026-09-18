@@ -1,0 +1,10 @@
+{
+  "name": "synchrobuilder",
+  "version": "0.1.0",
+  "description": "Multiplayer Claude Code for teams on any laptop. No server, safe by design.",
+  "type": "module",
+  "license": "MIT",
+  "bin": { "synchrobuilder": "bin/synchrobuilder.mjs" },
+  "engines": { "node": ">=20" },
+  "files": ["bin", "lib", "hooks", "skills", ".claude-plugin", "README.md"]
+}

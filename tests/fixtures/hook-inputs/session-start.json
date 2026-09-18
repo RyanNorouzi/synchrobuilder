@@ -1,0 +1,7 @@
+{
+  "session_id": "9de2bb7d-e402-43f8-b037-88beefa04181",
+  "transcript_path": "~/.claude/projects/<project>/<session>.jsonl",
+  "cwd": "<scratch>/hooktest/project",
+  "hook_event_name": "SessionStart",
+  "source": "startup"
+}

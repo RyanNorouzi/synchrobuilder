@@ -1,0 +1,12 @@
+{
+  "session_id": "9de2bb7d-e402-43f8-b037-88beefa04181",
+  "transcript_path": "~/.claude/projects/<project>/<session>.jsonl",
+  "cwd": "<scratch>/hooktest/project",
+  "prompt_id": "7e63c69d-572c-4733-a080-6f37925a9405",
+  "permission_mode": "acceptEdits",
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "<omitted>",
+  "background_tasks": [],
+  "session_crons": []
+}
