@@ -1,6 +1,6 @@
 // Runs the real CLI on a temporary copy of examples/demo-repo and checks that every planted bug is reported.
-// Rule ids that are not loaded in this checkout are printed as "not loaded" instead of failing, so the
-// lead can see exactly which rules are still missing after merging the rule agents' work.
+// Every rule the demo plants must be loaded and must fire. Two of the eleven are planted at test time because a
+// git repository cannot carry them on every operating system; those are skipped where the file system refuses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
