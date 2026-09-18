@@ -28,7 +28,7 @@
   <div class="video-slot" role="img" aria-label="Placeholder for the demo video">
     <div>
       <span class="eyebrow">Placeholder</span>
-      <p>A 60-second demo on macOS, Windows and Linux will go here once the plugin exists. Nothing is recorded yet.</p>
+      <p>A 60-second demo on macOS, Windows and Linux goes here once CI has run on all three. Nothing is recorded yet. In the meantime, <code>node scripts/demo.mjs</code> sets up two developers on one machine and prints a two-terminal walkthrough.</p>
     </div>
   </div>
 </div>
@@ -77,9 +77,9 @@
     </div>
     <div class="content">
       <div class="measure">
-        <p>Phase 0 is done: the Claude Code plugin, hook, marketplace, skill, monitor and status line documentation was read, line by line, and every design decision is recorded with its evidence. The plugin code starts in Phase 1 after the owner approves the plan.</p>
-        <p>Verified so far on macOS with Claude Code 2.1.218, with commands and output recorded in the research notes: exec-form Node hooks fire for session start, prompt submit, pre-edit, post-edit, stop and session end in a real headless session; the context they inject reaches Claude in the same turn; a missing <code>node</code> never blocks the session; a hook costs about 20 ms end to end; a hook can start a background worker that outlives it; per-developer state refs round-trip through a plain git remote without touching anyone's branches.</p>
-        <p>Not verified yet: anything on Windows or Linux, the interactive install flow, permission prompts, the status line, and hosted git providers. All of it is listed as acceptance criteria in the plan.</p>
+        <p>The plugin is built. Both pillars work and 223 tests pass on macOS: the portability audit with twelve rules, the fixers, the guard hook, the setup manifest with <code>init</code>, <code>setup</code>, <code>doctor</code> and the CI generator, and the whole multiplayer path over a real git remote.</p>
+        <p>Proven by a test or a recorded run: two developers on one machine with one bare remote see each other's presence, get a collision warning from a claim, exchange a message and receive a handoff, with neither repository touched; a live Claude Code session quotes the guard's note back in the same turn it made the edit; a missing <code>node</code> never blocks a session; hooks cost 21 to 26 ms end to end here.</p>
+        <p>Not verified yet: anything on Windows or Linux, which the CI matrix covers on the first push; installing through a marketplace; the permission prompt and status line as the terminal renders them; and custom git refs on hosted providers. The full ledger is <code>docs/VERIFICATION.md</code>.</p>
       </div>
       <div class="term" aria-label="Recorded terminal output">
         <div class="term-bar"><span class="os"><span data-on>macOS</span><span>Windows</span><span>Linux</span></span><span class="title">real output · 2026-09-18 · claude 2.1.218</span></div>
