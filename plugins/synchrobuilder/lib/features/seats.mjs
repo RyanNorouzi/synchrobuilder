@@ -3,7 +3,7 @@
 // nothing here disables or limits any feature (docs/commands.md: "Nothing is ever disabled").
 import { readJson, writeJsonAtomic } from '../core/fsx.mjs';
 
-export const PRICING_URL = 'https://github.com/OWNER/REPO'; // placeholder until the project has a public home (PLAN.md question 6)
+export const PRICING_URL = 'https://github.com/RyanNorouzi/synchrobuilder'; // placeholder until the project has a public home (PLAN.md question 6)
 export const FREE_SEATS = 3;
 const DAY_MS = 24 * 3600 * 1000;
 

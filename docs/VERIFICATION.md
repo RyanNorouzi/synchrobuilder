@@ -74,6 +74,15 @@ configuration.
    and Claude received no plugin context (Phase 0 experiment E3).
 5. **Manifests validate.** `claude plugin validate --strict` passes on both
    `plugins/synchrobuilder` and the marketplace manifest.
+6. **The transport works against real GitHub.** Against a throwaway private repository
+   (`RyanNorouzi/synchrobuilder-transport-test`), 11 of 11 checks passed on 2026-09-18:
+   GitHub accepts a push to `refs/synchrobuilder/v1/<handle>/<device>`;
+   `--force-with-lease` replaces the writer's own ref; the ref never appears in
+   `git branch -a` in an ordinary clone but does appear in `ls-remote`; a second clone
+   fetches the namespace into its own local namespace and the published JSON
+   round-trips; `main` is untouched; the branch-mode fallback publishes to
+   `refs/heads/synchrobuilder/v1/...`; and no Actions workflow run was triggered by any
+   state push.
 
 ## Verified by hand
 
@@ -96,7 +105,8 @@ Nothing below is claimed anywhere as working.
 | The `ask` permission prompt | Interactive only | Manual pass before release |
 | The status line as Claude Code renders it | Interactive only | Manual pass before release |
 | Plugin monitors | Experimental and interactive only; Synchrobuilder treats them as an optional accelerator and does not ship one yet | Manual pass, if the feature is adopted |
-| Custom git refs on hosted providers | Only a local bare remote was used | Push to a throwaway repository on GitHub, GitLab, Bitbucket and Azure DevOps and record the results |
+| Custom git refs on GitLab, Bitbucket and Azure DevOps | Only GitHub was available here | Repeat the hosted transport check on each provider |
+| Branch protection and rulesets refusing the state ref | The test repository had no rules configured | Enable a repository-wide ruleset and re-run the hosted transport check |
 | The bare `/audit` short form in the command menu | Interactive only | Manual pass before release |
 | Package managers resolved without a shell on Windows | The resolution code exists and is unit tested with a fake layout; no real Windows run | Windows CI |
 

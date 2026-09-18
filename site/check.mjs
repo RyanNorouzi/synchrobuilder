@@ -23,7 +23,7 @@ for (const f of fs.readdirSync(dist).filter((n) => n.endsWith('.html') && n !== 
   for (const m of html.matchAll(/<a\b[^>]*href="([^"]*)"[^>]*>/g)) { const href = m[1]; if (href.endsWith('.html') && !fs.existsSync(path.join(dist, href.split('#')[0]))) problems.push(`${f}: broken link ${href}`); }
   for (const m of html.matchAll(/<a\b[^>]*>(\s*)<\/a>/g)) problems.push(`${f}: empty link text`);
   for (const re of banned) if (re.test(html)) problems.push(`${f}: banned pattern ${re}`);
-  const allowed = /^(https:\/\/code\.claude\.com\/|https:\/\/github\.com\/OWNER\/REPO|https:\/\/github\.com\/worklab-studio\/claude-code-relay|https:\/\/synchrobuilder\.dev\/schema\/|https:\/\/fonts\.googleapis\.com\/|http:\/\/localhost)/;
+  const allowed = /^(https:\/\/code\.claude\.com\/|https:\/\/github\.com\/RyanNorouzi\/synchrobuilder|https:\/\/github\.com\/worklab-studio\/claude-code-relay|https:\/\/synchrobuilder\.dev\/schema\/|https:\/\/fonts\.googleapis\.com\/|http:\/\/localhost)/;
   for (const m of html.matchAll(/https?:\/\/[^"'\s<)]+/g)) if (!allowed.test(m[0])) problems.push(`${f}: external URL not on the allowlist ${m[0]}`);
   // heading order: no jump larger than one level
   let last = 1;

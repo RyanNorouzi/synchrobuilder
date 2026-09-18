@@ -23,11 +23,12 @@ exists.
 ## Install (when published)
 
 ```
-/plugin marketplace add OWNER/REPO
+/plugin marketplace add RyanNorouzi/synchrobuilder
 /plugin install synchrobuilder@synchrobuilder
 ```
 
-`OWNER/REPO` is a placeholder until the repository is public. Prerequisites:
+The repository is private while it is being finished, so the marketplace install works
+only for people it is shared with. Prerequisites:
 Claude Code, Node.js 20 or newer on `PATH`, git.
 
 To try a checkout locally without installing anything:

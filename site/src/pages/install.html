@@ -45,16 +45,16 @@
           <span class="eyebrow">Inside a Claude Code session</span>
           <span class="pill pill--planned">not published yet</span>
         </div>
-        <div class="cmd"><code>/plugin marketplace add <em class="ph">OWNER/REPO</em></code><button class="copy" type="button">Copy</button></div>
+        <div class="cmd"><code>/plugin marketplace add <em class="ph">RyanNorouzi/synchrobuilder</em></code><button class="copy" type="button">Copy</button></div>
         <div class="cmd"><code>/plugin install synchrobuilder@synchrobuilder</code><button class="copy" type="button">Copy</button></div>
-        <div class="install-foot"><em class="ph">OWNER/REPO</em> is a placeholder until the repository is public. The second command opens the plugin's details, where you choose user, project or local scope.</div>
+        <div class="install-foot">The repository is private while it is being finished, so these commands work only for people it is shared with. The second command opens the plugin's details, where you choose user, project or local scope.</div>
       </div>
       <div class="install">
         <div class="install-head">
           <span class="eyebrow">From a terminal, no interactive step</span>
           <span class="pill pill--planned">not published yet</span>
         </div>
-        <div class="cmd"><code>claude plugin marketplace add <em class="ph">OWNER/REPO</em></code><button class="copy" type="button">Copy</button></div>
+        <div class="cmd"><code>claude plugin marketplace add <em class="ph">RyanNorouzi/synchrobuilder</em></code><button class="copy" type="button">Copy</button></div>
         <div class="cmd"><code>claude plugin install synchrobuilder@synchrobuilder</code><button class="copy" type="button">Copy</button></div>
         <div class="install-foot">Installs to user scope unless you pass <code>--scope project</code> or <code>--scope local</code>. A terminal install loads the next time you start Claude Code, or after <code>/reload-plugins</code>.</div>
       </div>
@@ -63,7 +63,7 @@
           <span class="eyebrow">Machines without an SSH key for github.com</span>
           <span class="pill pill--planned">not published yet</span>
         </div>
-        <div class="cmd"><code>claude plugin marketplace add <em class="ph">https://github.com/OWNER/REPO.git</em></code><button class="copy" type="button">Copy</button></div>
+        <div class="cmd"><code>claude plugin marketplace add <em class="ph">https://github.com/RyanNorouzi/synchrobuilder.git</em></code><button class="copy" type="button">Copy</button></div>
         <div class="install-foot">The <code>owner/repo</code> shorthand clones over SSH unless <code>CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1</code> is set, and SSH prompts are suppressed, so a missing key fails instead of asking. The full HTTPS URL uses your git credential helpers instead.</div>
       </div>
       <div class="measure">
@@ -172,7 +172,7 @@
           <li><code>DISABLE_TELEMETRY</code> or <code>CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC</code>, set to any value including <code>0</code>, makes the Monitor tool unavailable, so plugin monitors are skipped. Monitors are an optional accelerator that only makes teammate delivery sooner; the baseline is the hooks plus a detached worker, and it keeps working. Monitors also run only in interactive CLI sessions and not on Amazon Bedrock, Google Cloud's Agent Platform or Microsoft Foundry.</li>
           <li>Plugin git operations have a 120-second timeout; <code>CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS</code> changes it. Offline, an install reads the cached catalog; the docs' fix for a background refresh that keeps failing is <code>CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE=1</code>.</li>
         </ul>
-        <p class="muted">Questions before the plugin exists: <code>hello@example.invalid</code> (placeholder address). The repository will be at <a href="https://github.com/OWNER/REPO">github.com/OWNER/REPO</a> (placeholder).</p>
+        <p class="muted">Questions before the plugin exists: <code>hello@example.invalid</code> (placeholder address). The repository will be at <a href="https://github.com/RyanNorouzi/synchrobuilder">github.com/RyanNorouzi/synchrobuilder</a> (placeholder).</p>
       </div>
     </div>
   </section>

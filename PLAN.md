@@ -315,7 +315,7 @@ defaults are marked **(default taken)**.
 6. **GitHub owner/repo and marketplace name.** The install commands and
    website need the final `<owner>/<repo>`; we propose marketplace name
    `synchrobuilder` (install id `synchrobuilder@synchrobuilder`).
-   **(default taken: marketplace name `synchrobuilder`; OWNER/REPO still a
+   **(default taken: marketplace name `synchrobuilder`; RyanNorouzi/synchrobuilder still a
    placeholder.)**
 7. **Node floor.** `>=20` (LTS) or `>=22`? We propose 20.
    **(default taken: 20.)**
