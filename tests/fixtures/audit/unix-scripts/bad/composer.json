@@ -1,0 +1,8 @@
+{
+  "name": "acme/unix-scripts-bad",
+  "scripts": {
+    "post-install-cmd": ["@php artisan key:generate", "rm -rf storage/cache/*"],
+    "test": "vendor/bin/phpunit",
+    "callback": "App\\Installer::postInstall"
+  }
+}

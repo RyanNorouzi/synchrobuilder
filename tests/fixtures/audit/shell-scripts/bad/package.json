@@ -1,0 +1,8 @@
+{
+  "name": "shell-scripts-bad",
+  "private": true,
+  "scripts": {
+    "postinstall": "bash scripts/setup.sh",
+    "build": "node build.mjs"
+  }
+}
