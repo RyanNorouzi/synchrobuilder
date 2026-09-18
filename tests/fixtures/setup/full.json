@@ -1,0 +1,25 @@
+{
+  "$schema": "https://synchrobuilder.dev/schema/manifest-v1.json",
+  "version": 1,
+  "name": "demo-portal",
+  "runtimes": [
+    { "name": "node", "version": "24.16.0", "detect": "node --version" }
+  ],
+  "packageManager": { "name": "pnpm", "version": "10.22.0" },
+  "services": [
+    { "name": "postgres", "version": "16", "port": 5432, "hint": "Any Postgres 16 reachable at DATABASE_URL" }
+  ],
+  "env": [
+    { "name": "DATABASE_URL", "description": "Postgres connection string", "required": true },
+    { "name": "SESSION_SECRET", "description": "Random 32+ character string", "required": true }
+  ],
+  "commands": {
+    "install": "pnpm install --frozen-lockfile",
+    "migrate": "pnpm prisma migrate deploy",
+    "seed": "pnpm run seed",
+    "start": "pnpm run dev",
+    "test": "pnpm test"
+  },
+  "healthCheck": { "type": "http", "url": "http://localhost:3000/health", "timeoutSeconds": 60, "expectStatus": 200 },
+  "os": { "windows": { "commands": { "start": "pnpm run dev:win" } } }
+}
