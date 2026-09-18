@@ -7,3 +7,5 @@ node_modules/
 coverage/
 site/dist/
 .claude/worktrees/
+.synchrobuilder/audit-report.json
+.synchrobuilder/fingerprint.json
