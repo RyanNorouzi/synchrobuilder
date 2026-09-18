@@ -1,0 +1,9 @@
+{
+  "name": "shell-scripts-good",
+  "private": true,
+  "scripts": {
+    "postinstall": "node scripts/setup.mjs",
+    "legacy": "bash scripts/setup.sh",
+    "build": "node scripts/run.mjs scripts/build.sh"
+  }
+}

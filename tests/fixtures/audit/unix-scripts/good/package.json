@@ -1,0 +1,14 @@
+{
+  "name": "unix-scripts-good",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.mjs --out dist",
+    "clean": "node scripts/clean.mjs",
+    "test": "node --test",
+    "lint": "npx eslint . --ext .js,.mjs",
+    "start": "npm run build --workspace=app",
+    "serve": "pnpm exec vite --port 3000",
+    "flag": "node -e \"console.log(process.env.PATH)\"",
+    "yarn": "yarn workspace app build"
+  }
+}

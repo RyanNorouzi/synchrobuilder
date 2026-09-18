@@ -1,0 +1,22 @@
+{
+  "name": "unix-scripts-bad",
+  "private": true,
+  "scripts": {
+    "clean": "rm -rf dist coverage",
+    "copy": "mkdir -p dist && cp -r assets dist/assets",
+    "env": "NODE_ENV=production node build.mjs",
+    "export": "export API_URL=http://localhost:3000; node serve.mjs",
+    "expand": "node build.mjs --out $OUT_DIR --v ${VERSION}",
+    "quotes": "node -e 'console.log(1)'",
+    "chain": "npm run lint && npm run test || echo failed",
+    "pipe": "cat src/index.js | node minify.mjs > dist/index.js",
+    "backtick": "node build.mjs --sha `git rev-parse HEAD`",
+    "subst": "node build.mjs --sha $(git rev-parse HEAD)",
+    "silence": "node check.mjs 2>/dev/null",
+    "link": "ln -s ../shared node_modules/shared",
+    "mode": "chmod +x bin/cli.js",
+    "touch": "touch dist/.keep",
+    "shell": "bash scripts/setup.sh",
+    "fine": "node ok.mjs"
+  }
+}

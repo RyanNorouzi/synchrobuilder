@@ -1,0 +1,3 @@
+@import './theme.css';
+.logo { background: url("./img/logo.png"); }
+.remote { background: url(https://example.com/a.png); }

@@ -1,0 +1,46 @@
+// Two entries in one directory whose names differ only by case (README.md and Readme.md).
+// A case-insensitive file system cannot hold both, so a clone on macOS or Windows silently loses one of them.
+const MAX_FINDINGS = 100;
+
+/** Every entry the project contains, files and the directories above them, keyed by parent directory (exact) and name (lower-cased). */
+function groupEntries(index) {
+  const groups = new Map();
+  const seen = new Set();
+  const add = (dir, name) => {
+    const full = dir ? `${dir}/${name}` : name;
+    if (seen.has(full)) return;
+    seen.add(full);
+    const key = `${dir}\0${name.toLowerCase()}`;
+    if (!groups.has(key)) groups.set(key, { dir, names: [] });
+    groups.get(key).names.push(name);
+  };
+  for (const file of index.files) {
+    const segs = file.split('/');
+    for (let i = 0; i < segs.length; i++) add(segs.slice(0, i).join('/'), segs[i]);
+  }
+  return groups;
+}
+
+export default {
+  id: 'case-duplicates',
+  severity: 'high',
+  title: 'File names that differ only by case',
+  explain: 'Git can track README.md and Readme.md side by side, but macOS and Windows disks cannot: a clone there keeps one spelling and the other is silently overwritten or missing. Rename so every name in a directory is unique regardless of case.',
+  scope: 'project',
+  check({ index }) {
+    const findings = [];
+    if (!index || !Array.isArray(index.files)) return findings;
+    for (const { dir, names } of groupEntries(index).values()) {
+      if (names.length < 2 || findings.length >= MAX_FINDINGS) continue;
+      const sorted = [...names].sort();
+      const where = dir || '.';
+      findings.push({
+        file: dir ? `${dir}/${sorted[0]}` : sorted[0],
+        message: `Directory ${where} has ${sorted.length} entries whose names differ only by case: ${sorted.join(', ')}`,
+        fix: `Keep one of them (or rename so the names differ by more than case); use "git mv" so the rename is recorded on case-insensitive disks too`,
+        data: { dir, names: sorted, paths: sorted.map((n) => (dir ? `${dir}/${n}` : n)) },
+      });
+    }
+    return findings;
+  },
+};
