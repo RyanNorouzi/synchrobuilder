@@ -41,7 +41,7 @@ test('the nonce is 16 hex chars, identical on both markers, fresh per call', () 
 });
 
 test('metadata pairs are validated, never cleaned: bad keys or values are dropped', () => {
-  const line = renderMetaLine('entry', { from: 'alice', branch: 'feat/x-1', seen: '2026-09-18T07:20:11Z', mail: 'a@b.c', n: 3, ok: true, 'bad key': 'x', 'k=v': 'x', spaced: 'a b', eq: 'a=b', tag: '<x>', paren: '(withheld)', empty: '', nul: null, obj: {}, nl: 'a\nb', esc: 'a\x1bb', long: 'x'.repeat(129) });
+  const line = renderMetaLine('entry', { from: 'alice', branch: 'feat/x-1', seen: '2026-09-18T07:20:11Z', mail: 'a@b.c', n: 3, ok: true, 'bad key': 'x', 'k=v': 'x', spaced: 'a b', eq: 'a=b', tag: '<x>', paren: '(x)', empty: '', nul: null, obj: {}, nl: 'a\nb', esc: 'a\x1bb', long: 'x'.repeat(129) });
   assert.equal(line, '  @entry from=alice branch=feat/x-1 seen=2026-09-18T07:20:11Z mail=a@b.c n=3 ok=true');
   assert.equal(renderMetaLine('entry', {}), '  @entry');
   assert.equal(renderMetaLine('entry', null), '  @entry');

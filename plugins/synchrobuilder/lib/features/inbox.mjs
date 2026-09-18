@@ -49,7 +49,7 @@ export async function inbox(ctx) {
   if (!messages.length) return null;
   const entries = messages.map((m) => ({
     key: m.key, from: m.from,
-    meta: { from: m.from, kind: 'message', to: 'me', at: m.atIso || '(withheld)', seen: m.writer.firstSeenAt || '(withheld)', verified: m.writer.verified },
+    meta: { from: m.from, kind: 'message', to: 'me', at: m.atIso || 'withheld', seen: m.writer.firstSeenAt || 'withheld', verified: m.writer.verified },
     lines: sanitizeText(m.text).split('\n').filter(Boolean),
   })).filter((e) => e.lines.length);
   if (!entries.length) return null;

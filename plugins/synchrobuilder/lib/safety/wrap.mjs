@@ -12,7 +12,7 @@ export const BODY_PREFIX = '  | ';
 export const META_PREFIX = '  @';
 const KIND = /^[a-z][a-z0-9-]{0,31}$/;
 const META_KEY = /^[a-z][a-z0-9_-]{0,31}$/i;
-const META_VALUE = /^[A-Za-z0-9._:/@-]{1,128}$/;
+const META_VALUE = /^[A-Za-z0-9._:/@,+-]{1,128}$/;
 const NONCE = /^[0-9a-f]{16}$/;
 const BEGIN = '=== synchrobuilder:begin teammate-data nonce=';
 const END = '=== synchrobuilder:end teammate-data nonce=';

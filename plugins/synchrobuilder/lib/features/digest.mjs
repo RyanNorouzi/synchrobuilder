@@ -11,7 +11,7 @@ import { foldBoard } from './board-fold.mjs';
 import { renderBudgeted } from './budget.mjs';
 
 const CAPS = { claims: 30, messages: 20, handoffs: 10, presence: 30, board: 20 };
-const withheld = (v) => (v === null || v === undefined || v === '' ? '(withheld)' : v);
+const withheld = (v) => (v === null || v === undefined || v === '' ? 'withheld' : v);
 
 function base(writer, kind, extra = {}) {
   const p = writer.presence || {};

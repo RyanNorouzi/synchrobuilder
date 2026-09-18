@@ -71,7 +71,7 @@ export async function collision(ctx, toolInput) {
     const p = m.writer.presence || {};
     const lines = [`${verb(m)} ${m.path} ${fmtAgo(m.ageMs)}`];
     if (m.note) lines.push(sanitizeLine(m.note, LIMITS.task));
-    return { meta: { from: m.writer.handle, kind: m.kind, path: m.path, branch: p.branch || '(withheld)', seen: m.writer.firstSeenAt || '(withheld)', verified: m.writer.verified }, lines };
+    return { meta: { from: m.writer.handle, kind: m.kind, path: m.path, branch: p.branch || 'withheld', seen: m.writer.firstSeenAt || 'withheld', verified: m.writer.verified }, lines };
   });
   const result = renderBudgeted({ kind: 'collision', sections: [{ entries }], limit: LIMITS.collisionChars, measure: 'body', generatedAt: new Date(now).toISOString() });
   if (!result) return null;

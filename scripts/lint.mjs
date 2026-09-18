@@ -8,7 +8,7 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const problems = [];
 function walk(dir, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (['node_modules', '.git', 'dist', '.claude-flow'].includes(e.name)) continue;
+    if (['node_modules', '.git', 'dist', '.claude-flow', '.claude'].includes(e.name)) continue;
     const p = path.join(dir, e.name);
     if (e.isDirectory()) walk(p, out); else out.push(p);
   }

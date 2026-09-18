@@ -93,6 +93,6 @@ test('digest: ctx.snapshot (already parsed) is accepted and re-validated', async
   raw.writers[1].presence.branch = 'bad..branch';
   const text = await digest(rig.ctx({ snapshot: raw }));
   const bobPresence = text.split('\n').find((l) => l.includes('from=bob kind=presence'));
-  assert.ok(bobPresence && bobPresence.includes('branch=(withheld)'), 'invalid branch is withheld, not rendered');
+  assert.ok(bobPresence && bobPresence.includes('branch=withheld'), 'invalid branch is withheld, not rendered');
   assert.equal(typeof NOW, 'number');
 });

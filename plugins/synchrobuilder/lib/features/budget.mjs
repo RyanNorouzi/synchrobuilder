@@ -28,7 +28,7 @@ export function renderBudgeted({ kind, sections, limit, measure = 'total', gener
     if (dropped) entries.push({ meta: { kind: 'truncated', dropped }, lines: [] });
     return { entries, text: wrapTeammateData({ kind, entries, generatedAt }) };
   };
-  const size = (r) => (measure === 'body' ? bodyLength(r.entries) : r.text.length);
+  const size = (r) => (r.text === null ? Infinity : measure === 'body' ? bodyLength(r.entries) : r.text.length);
   let result = render();
   while (size(result) > limit) {
     let victim = null;
@@ -40,5 +40,5 @@ export function renderBudgeted({ kind, sections, limit, measure = 'total', gener
   }
   const entries = flatten(live);
   // `entries` are the survivors (extra properties such as a caller's `key` are preserved) so callers can mark them delivered.
-  return entries.length ? { text: result.text, kept: entries.length, dropped, entries } : null;
+  return entries.length && result.text !== null ? { text: result.text, kept: entries.length, dropped, entries } : null;
 }
