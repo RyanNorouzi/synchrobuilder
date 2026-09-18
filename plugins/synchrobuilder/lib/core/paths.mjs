@@ -13,6 +13,16 @@ export function homeDir() {
 
 export function toPosix(p) { return String(p).replace(/\\/g, '/'); }
 
+/**
+ * Resolve symlinks so one directory always hashes to one key. This matters on macOS, where the same temp directory is
+ * both /var/folders/... and /private/var/folders/..., and anywhere a checkout sits under a symlinked or junctioned path:
+ * a hook reporting one spelling and the CLI reporting the other must not end up with two separate state directories.
+ */
+export function realPath(p) {
+  try { return fs.realpathSync.native(p); } catch { /* the path may not exist yet */ }
+  try { return fs.realpathSync(p); } catch { return String(p); }
+}
+
 /** Canonical form of a filesystem path for hashing and comparing: absolute, forward slashes, lower-cased where the OS ignores case. */
 export function canonicalPath(p) {
   let s = toPosix(path.resolve(p));
@@ -31,7 +41,7 @@ export function findGitEntry(startDir) {
     const candidate = path.join(dir, '.git');
     try {
       const st = fs.statSync(candidate);
-      if (st.isDirectory() || st.isFile()) return { workTree: dir, gitEntry: candidate, isFile: st.isFile() };
+      if (st.isDirectory() || st.isFile()) return { workTree: realPath(dir), gitEntry: realPath(candidate), isFile: st.isFile() };
     } catch { /* keep walking */ }
     const parent = path.dirname(dir);
     if (parent === dir) return null;
@@ -49,12 +59,12 @@ export function resolveGitDirs(startDir) {
     const text = fs.readFileSync(entry.gitEntry, 'utf8');
     const m = text.match(/^gitdir:\s*(.+?)\s*$/m);
     if (!m) return null;
-    gitDir = path.resolve(entry.workTree, m[1]);
+    gitDir = realPath(path.resolve(entry.workTree, m[1]));
   }
   let commonDir = gitDir;
   try {
     const rel = fs.readFileSync(path.join(gitDir, 'commondir'), 'utf8').trim();
-    if (rel) commonDir = path.resolve(gitDir, rel);
+    if (rel) commonDir = realPath(path.resolve(gitDir, rel));
   } catch { /* not a linked worktree */ }
   return { workTree: entry.workTree, gitDir, commonDir };
 }
@@ -122,6 +132,30 @@ export function locate(startDir) {
     remoteDir: remoteUrl ? remoteDir(remoteUrl) : null,
     repoName: path.basename(dirs.workTree),
   };
+}
+
+/**
+ * Repo-relative POSIX path for a file path a tool reported: absolute or relative, forward or back slashes, and possibly
+ * spelled through a symlink (macOS /var vs /private/var, a junctioned drive on Windows). Null when it is outside the
+ * work tree or inside .git.
+ */
+export function toRepoRelative(workTree, filePath, cwd = null) {
+  if (!workTree || typeof filePath !== 'string' || !filePath.trim()) return null;
+  const raw = filePath.trim();
+  const isAbs = path.isAbsolute(raw) || /^[A-Za-z]:[\\/]/.test(raw) || raw.startsWith('/');
+  const abs = path.resolve(isAbs ? raw : path.join(cwd || workTree, raw));
+  const root = canonicalPath(workTree);
+  for (const candidate of [canonicalPath(abs), canonicalPath(realPath(abs)), canonicalPath(path.join(realPath(path.dirname(abs)), path.basename(abs)))]) {
+    if (candidate === root) return null;
+    if (candidate.startsWith(root + '/')) {
+      const rel = candidate.slice(root.length + 1);
+      if (!rel || rel.split('/').some((seg) => seg === '.git')) return null;
+      // canonicalPath lower-cases on case-insensitive systems; recover the original spelling when we can.
+      const original = toPosix(abs).split('/').slice(toPosix(path.resolve(workTree)).split('/').length).join('/');
+      return original && original.toLowerCase() === rel.toLowerCase() ? original : rel;
+    }
+  }
+  return null;
 }
 
 export function isMuted(checkoutDirPath) {

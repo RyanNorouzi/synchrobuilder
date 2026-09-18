@@ -19,7 +19,7 @@ test('git config parser reads remotes and user sections', () => {
 });
 
 test('resolveGitDirs follows a worktree gitdir file and commondir', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb-wt-'));
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sb-wt-')));
   const common = path.join(root, 'main', '.git');
   fs.mkdirSync(path.join(common, 'worktrees', 'wt1'), { recursive: true });
   fs.writeFileSync(path.join(common, 'config'), '[remote "origin"]\n\turl = https://example.com/r.git\n');
@@ -29,4 +29,17 @@ test('resolveGitDirs follows a worktree gitdir file and commondir', () => {
   const r = resolveGitDirs(path.join(root, 'wt1', 'src'));
   assert.equal(canonicalPath(r.commonDir), canonicalPath(common));
   assert.equal(canonicalPath(r.workTree), canonicalPath(path.join(root, 'wt1')));
+});
+
+test('a symlinked checkout path resolves to one key, so hooks and the CLI share one state directory', () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sb-link-')));
+  const real = path.join(root, 'real');
+  fs.mkdirSync(path.join(real, '.git'), { recursive: true });
+  fs.writeFileSync(path.join(real, '.git', 'config'), '[remote "origin"]\n\turl = https://example.com/r.git\n');
+  const link = path.join(root, 'link');
+  try { fs.symlinkSync(real, link, 'junction'); } catch { return; } // Windows without developer mode
+  const viaReal = resolveGitDirs(real);
+  const viaLink = resolveGitDirs(link);
+  assert.equal(canonicalPath(viaLink.commonDir), canonicalPath(viaReal.commonDir));
+  assert.equal(canonicalPath(viaLink.workTree), canonicalPath(viaReal.workTree));
 });

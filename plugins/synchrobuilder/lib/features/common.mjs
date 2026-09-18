@@ -2,7 +2,7 @@
 // Everything here is file reads only and never throws, because most callers run inside a hook (ADR-003 fail-open contract).
 import path from 'node:path';
 import { readJson } from '../core/fsx.mjs';
-import { CASE_INSENSITIVE, canonicalPath, toPosix, locate } from '../core/paths.mjs';
+import { toRepoRelative, CASE_INSENSITIVE, canonicalPath, toPosix, locate } from '../core/paths.mjs';
 import { readConfig, readTeam } from '../core/config.mjs';
 import {
   isHandle, isDevice, validRepoPath, validTimestamp, validPresence, validClaims, validMessage, validBoard, validHandoff, validContracts,
@@ -119,16 +119,9 @@ export function pathsOverlap(a, b) { return coversPath(a, b) || coversPath(b, a)
 
 /** Repo-relative POSIX path for a tool_input file path (absolute, relative to cwd, backslashes accepted). Null outside the work tree. */
 export function repoRelativePath(loc, cwd, filePath) {
-  if (!loc || typeof filePath !== 'string' || !filePath.trim()) return null;
-  const raw = filePath.trim();
-  const absolute = path.isAbsolute(raw) || /^[A-Za-z]:[\\/]/.test(raw) || raw.startsWith('/');
-  const abs = path.resolve(absolute ? raw : path.join(cwd || loc.workTree, raw));
-  const canonRoot = canonicalPath(loc.workTree);
-  const canonAbs = canonicalPath(abs);
-  if (canonAbs !== canonRoot && !canonAbs.startsWith(canonRoot + '/')) return null;
-  const rootSegments = canonRoot.split('/').length;
-  const rel = toPosix(abs).split('/').slice(rootSegments).join('/');
-  return validRepoPath(rel);
+  if (!loc) return null;
+  const rel = toRepoRelative(loc.workTree, filePath, cwd);
+  return rel ? validRepoPath(rel) : null;
 }
 
 export function fmtAgo(ms) {

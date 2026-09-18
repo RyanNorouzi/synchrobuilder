@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { auditFile } from '../audit/engine.mjs';
-import { CASE_INSENSITIVE, toPosix } from '../core/paths.mjs';
+import { toRepoRelative } from '../core/paths.mjs';
 import { logLine } from '../core/log.mjs';
 import { LIMITS } from '../core/schema.mjs';
 import { sanitizeLine } from '../safety/sanitize.mjs';
@@ -19,14 +19,7 @@ const MAX_FILE_BYTES = 512 * 1024;
 /** Repo-relative POSIX path of the edited file, or null when the tool input names nothing inside the work tree. */
 export function relativeTarget(workTree, toolInput) {
   const raw = toolInput && (toolInput.file_path || toolInput.notebook_path);
-  if (typeof raw !== 'string' || !raw.trim()) return null;
-  const abs = toPosix(path.resolve(toPosix(raw.trim())));
-  const root = toPosix(path.resolve(workTree)).replace(/\/+$/, '');
-  const fold = (s) => (CASE_INSENSITIVE ? s.toLowerCase() : s);
-  if (!fold(abs).startsWith(`${fold(root)}/`)) return null;
-  const rel = abs.slice(root.length + 1);
-  if (!rel || rel.split('/').some((seg) => seg === '.git')) return null;
-  return rel;
+  return typeof raw === 'string' ? toRepoRelative(workTree, raw) : null;
 }
 
 function ready(ctx, toolInput) {

@@ -50,12 +50,18 @@ async function setup() {
   git(bob.clone, 'pull', '-q', 'origin', 'main');
 }
 
+// paths.homeDir() reads SYNCHROBUILDER_HOME at call time, so point it at this developer's home while we resolve.
+function locateAs(d) {
+  const previous = process.env.SYNCHROBUILDER_HOME;
+  process.env.SYNCHROBUILDER_HOME = d.home;
+  try { return paths.locate(d.clone); } finally { if (previous === undefined) delete process.env.SYNCHROBUILDER_HOME; else process.env.SYNCHROBUILDER_HOME = previous; }
+}
 function workerOnce(d) {
-  const loc = paths.locate(d.clone);
+  const loc = locateAs(d);
   return run(d, 'worker', loc.checkoutDir, loc.remoteDir, '--once', '--json');
 }
 function snapshot(d) {
-  const loc = paths.locate(d.clone);
+  const loc = locateAs(d);
   try { return JSON.parse(fs.readFileSync(path.join(loc.remoteDir, 'snapshot.json'), 'utf8')); } catch { return null; }
 }
 function writers(d) { const s = snapshot(d); return s && Array.isArray(s.writers) ? s.writers : []; }
@@ -69,7 +75,7 @@ test('multiplayer end to end', { skip: !READY && 'multiplayer modules not merged
       assert.equal(r.code, 0, r.out);
     }
     assert.equal(run(alice, 'iam').code, 0);
-    const idFile = path.join(paths.locate(alice.clone).checkoutDir, 'identity.json');
+    const idFile = path.join(locateAs(alice).checkoutDir, 'identity.json');
     const first = workerOnce(alice);
     assert.equal(first.code, 0, first.out);
     assert.ok(fs.existsSync(idFile), 'worker resolved identity');
@@ -117,7 +123,7 @@ test('multiplayer end to end', { skip: !READY && 'multiplayer modules not merged
   await t.test('handoff staged on stop reaches the teammate digest', () => {
     const stop = hookRun(alice, 'stop', { hook_event_name: 'Stop', stop_hook_active: false, last_assistant_message: 'Done with the API change.\nNext: wire the dashboard filter.\nBlocked: waiting on migration review.' });
     assert.equal(stop.code, 0, stop.out);
-    const draftFile = path.join(paths.locate(alice.clone).checkoutDir, 'handoff-draft.json');
+    const draftFile = path.join(locateAs(alice).checkoutDir, 'handoff-draft.json');
     assert.ok(fs.existsSync(draftFile), 'draft staged');
     const draft = JSON.parse(fs.readFileSync(draftFile, 'utf8'));
     const h = run(alice, 'handoff', '--confirm', draft.id || 'latest', '--for', 'bob');
@@ -132,14 +138,14 @@ test('multiplayer end to end', { skip: !READY && 'multiplayer modules not merged
   });
 
   await t.test('offline: work queues locally and syncs after the remote is back', () => {
-    git(alice.clone, 'remote', 'set-url', 'origin', 'https://127.0.0.1:9/unreachable.git');
+    fs.renameSync(origin, `${origin}.away`);
     assert.equal(run(alice, 'claim', 'src/other.ts').code, 0);
     const off = workerOnce(alice);
     assert.equal(off.code, 0, 'worker never fails the process when offline');
-    const status = JSON.parse(fs.readFileSync(path.join(paths.locate(alice.clone).remoteDir, 'status.json'), 'utf8'));
+    const status = JSON.parse(fs.readFileSync(path.join(locateAs(alice).remoteDir, 'status.json'), 'utf8'));
     assert.ok(['network', 'auth', 'unknown'].includes(status.lastErrorClass), `status: ${JSON.stringify(status)}`);
     assert.ok(writers(alice).map((w) => w.handle).includes('bob'), 'snapshot preserved while offline');
-    git(alice.clone, 'remote', 'set-url', 'origin', origin);
+    fs.renameSync(`${origin}.away`, origin);
     assert.equal(workerOnce(alice).code, 0);
     assert.equal(workerOnce(bob).code, 0);
     const aliceEntry = writers(bob).find((w) => w.handle === 'alice');
