@@ -1,0 +1,236 @@
+{
+ "generated": "2026-09-18",
+ "method": "Per-note results of the independent verifier agents (every citation re-opened against the raw docs; errors fixed in place).",
+ "notes": [
+  {
+   "note": "hooks-core",
+   "file": "hooks-core.md",
+   "claims_checked": 118,
+   "errors_found": 16,
+   "errors_fixed": 16,
+   "checklist_items_added": 5,
+   "remaining_concerns": [
+    "Ordering of multiple hooks' additionalContext values for one event: confirmed not in L998-L1035 (only 'Claude receives all of the values', L1021). Note correctly says Not found.",
+    "CLAUDE_CODE_ENTRYPOINT: confirmed zero occurrences in the entire hooks.md, not just the range. Note correctly says Not found.",
+    "Doc/CLI version claims (v2.1.276 docs, v2.1.218 local) cannot be settled from the source; marked unverified in the note rather than deleted because Open question 6 depends on the local version.",
+    "Block-range citations for JSON examples (e.g. L77-L93, L333-L351, L663-L681) start at the introductory sentence rather than the code fence; content inside each range is correct so I left them.",
+    "Implication 11 cites L1606 (outside the audited range) for backslash normalization on Windows; I spot-checked L1606 and it does say to normalize separators, but that line belongs to the events note's range and is not otherwise verified here."
+   ]
+  },
+  {
+   "note": "hooks-events-a",
+   "file": "hooks-events-session-and-pretool.md",
+   "claims_checked": 118,
+   "errors_found": 5,
+   "errors_fixed": 5,
+   "checklist_items_added": 8,
+   "remaining_concerns": [
+    "Whether UserPromptSubmit fires in `-p`/headless runs is not stated in hooks.md; the note now flags it rather than asserting it. Needs a live test or the headless doc.",
+    "NotebookEdit has no documented tool_input schema (only the L295 matcher example); whether it carries a `file_path`-shaped input for the claim check remains untested.",
+    "The 'latest Claude Code version' claim could not be checked (npm unreachable); the note now cites only the highest in-file marker (v2.1.274) and the confirmed local CLI (v2.1.218).",
+    "Several cited behaviors carry version markers newer than the local v2.1.218 CLI (mcp_server v2.1.274, resume cost fields v2.1.251, JSON-parse-failure handling v2.1.248, bashEditDiff v2.1.269, plan-mode defer resume v2.1.246); the note lists these but they are unverified locally.",
+    "Whether `command_name` in UserPromptExpansion includes the plugin namespace prefix is not stated in the docs (note already flags this as an open question)."
+   ]
+  },
+  {
+   "note": "hooks-events-b",
+   "file": "hooks-events-posttool-to-sessionend.md",
+   "claims_checked": 214,
+   "errors_found": 7,
+   "errors_fixed": 7,
+   "checklist_items_added": 0,
+   "remaining_concerns": [
+    "Whether SessionEnd fires on terminal close / SIGHUP / SIGKILL is genuinely absent from hooks.md; I re-ran the search (sighup, sigterm, sigint, sigkill, ctrl+c, terminal close, process killed, crash) and found nothing beyond L3692 (async hooks killed at -p teardown). The note correctly reports this as Not found.",
+    "No Edit-specific tool_response example or enumeration of `type` values exists in hooks.md; the note correctly says so. This must be settled by experiment on v2.1.218, not from the docs.",
+    "The doc's version markers only reach v2.1.274 while npm is at 2.1.276; behavior added in 2.1.275-2.1.276 (if any) is not reflected in this note.",
+    "Several inferences in the note are labeled as inferences rather than doc statements (e.g. TeammateIdle is agent-teams-only 'by definition', CwdChanged 'not agent-teams-only', Stop 'no documented way' to add context for a future turn). They are consistent with the source but are not direct quotes.",
+    "The 'Implications' item 8 advice 'exit 0 on internal errors satisfies fail-open' is design guidance, not a doc claim; it is consistent with L861-L865 but has no citation of its own."
+   ]
+  },
+  {
+   "note": "hooks-async-security",
+   "file": "hooks-async-prompt-security.md",
+   "claims_checked": 78,
+   "errors_found": 5,
+   "errors_fixed": 5,
+   "checklist_items_added": 5,
+   "remaining_concerns": [
+    "Interactive-session teardown of a still-running `async: true` hook (or its detached child) is genuinely not stated anywhere in hooks.md; the only teardown/cancelled text is L3692 for `-p`. The note's \"not stated\" is correct; it needs an experiment.",
+    "Whether plugin `hooks/hooks.json` is gated by the same workspace-trust rule as settings-file hooks is not stated in either assigned file (L3773 says \"any hook from a settings file\"; L259/L659 only say plugin hooks apply \"when plugin is enabled\"). The note correctly defers this to the plugins/permissions pages, which were not in scope.",
+    "`asyncRewake` is documented in exactly three lines (hooks.md L461, L3688, L3760). Whether it accepts JSON `additionalContext` and whether a benign exit-2 wake surfaces an error notice remain open; the note's Open questions 3-4 stand.",
+    "The note's Implication 1 claims synchronous PostToolUse additionalContext \"satisfies 'tells Claude in the same turn'\" via hooks.md L1017 (\"next to the tool result\"). L1017 is accurate, but the docs do not literally say \"same turn\"; this is a reasonable reading, not a quote.",
+    "All version markers cited (v2.1.198, v2.1.202, v2.1.210, v2.1.218, v2.1.248) were confirmed against the source; the local CLI at 2.1.218 predates the v2.1.248 JSON-parse-failure behavior change, so Open question 6 should also cover that change (not added to keep the note's structure; worth noting for the experiment plan).",
+    "hooks.md L416 (\"If you define the same handler in more than one settings file, it runs once. A plugin's or skill's copy of the same handler stays separate\") was not added; it is relevant if a user copies the plugin's hook into their own settings.json, which would double-fire."
+   ]
+  },
+  {
+   "note": "plugins-reference",
+   "file": "plugins-reference.md",
+   "claims_checked": 184,
+   "errors_found": 11,
+   "errors_fixed": 11,
+   "checklist_items_added": 5,
+   "remaining_concerns": [
+    "The source never states the literal slash syntax for invoking a plugin skill (`/plugin-name:skill-name`); the note now flags this, but the claim must be confirmed from skills.md before the Synchrobuilder plan relies on it.",
+    "Whether a marketplace entry `name` that differs from plugin.json `name` changes the component prefix (note's Open question 1) cannot be settled from this file; L498 only says it governs `enabledPlugins` keys and `/plugin`.",
+    "Hook merge rules: L679 promises per-section rules for hooks/MCP/LSP, but the Hooks section (L88-L164) gives none. The note correctly reports 'Not found in docs'; this is a real gap in the source, not the note.",
+    "Per-hook user disabling: confirmed absent from the source (grep 'disable' near 'hook' and 'disableAllHooks' return nothing). Open question 3 stands.",
+    "Section 9 is not a strict verbatim copy of L291-L339: the required-fields table (L323-L327) was converted to quoted prose and the lead-in sentence L301 and the 'Optional fields' header were dropped. All quoted text matches; no facts changed, so I left the structure.",
+    "Section 13 paraphrases most option descriptions rather than quoting them verbatim as the checklist asked; every option name, default, and version marker I spot-checked matches the source. I did not rewrite them as tables to stay within the line budget and the note's structure.",
+    "The note cites local CLI 2.1.218 for experiments while the docs describe behavior up to 2.1.273; several documented features (userConfig `options` v2.1.271, `--accept-command` v2.1.271, `--json` on install/enable/disable v2.1.268, `/config` rows v2.1.269, terminal plugin sync v2.1.273, `plugin eval` v2.1.269) will not exist on that CLI. Experiments on 2.1.218 cannot validate them."
+   ]
+  },
+  {
+   "note": "marketplaces",
+   "file": "marketplaces-and-install.md",
+   "claims_checked": 142,
+   "errors_found": 7,
+   "errors_fixed": 7,
+   "checklist_items_added": 4,
+   "remaining_concerns": [
+    "Whether a user-scope plugin install writes to ~/.claude/settings.json is not stated in either page (the settings-reference page is linked but was not a source).",
+    "The exact syntax and scope flags of `/plugin update` and `claude plugin update` are referenced (plugin-marketplaces.md L577, L650-L653, L786, L1081) but never defined in these two pages; the note correctly lists this as Not found.",
+    "`--strict` for `claude plugin validate` does not appear in either page (grep confirmed); the checklist item cannot be settled from these sources.",
+    "No sentence in either page says git must be installed; the closest are the clone behavior (L760), `archive` working 'without git or npm' (L266), and 'For GitHub sources, ensure repositories are public or you have access' (L1473).",
+    "Whether a relative-path plugin inside the same git-hosted marketplace repo auto-installs when `extraKnownMarketplaces` + `enabledPlugins` declare it (discover-plugins.md L533 covers only 'external' sources) remains an open question in the note.",
+    "The note's quote of the `name` field (L161) omits the final sentence about listing multiple plugins in a single marketplace.json; the omission does not change meaning, so I left it."
+   ]
+  },
+  {
+   "note": "plugins-guide",
+   "file": "plugins-guide-hints-relevance.md",
+   "claims_checked": 118,
+   "errors_found": 9,
+   "errors_fixed": 9,
+   "checklist_items_added": 5,
+   "remaining_concerns": [
+    "Every blockquote and field name in sections 1-5 matched the source text (links stripped, occasional sentence-boundary truncation). No wrong field names, defaults, or version markers were found.",
+    "The note's answers 'Not found in docs' for (a) plugin-driven main statusLine, (b) short command aliases, (c) skill load/token cost, (d) runtime (Node) dependencies are correct for the five assigned files, but plugins-reference.md, settings-reference.md, statusline.md and skills.md exist in docs-raw and were outside this assignment; those answers must not be treated as final until those files are checked.",
+    "Note section 1.2 step 1 quote ends at '--plugin-dir' while the source sentence continues 'in the test step' (plugins.md L38); harmless truncation, left as is.",
+    "The note cites plugin-hints.md L30 and L139 for 'hints only fire for official-marketplace plugins'; L22 says 'an official Anthropic marketplace' (plural-capable) while L150 names claude-plugins-official specifically. The note reflects both; the docs themselves are slightly inconsistent on whether more than one Anthropic-controlled marketplace qualifies.",
+    "The monitors mechanism (execution model, idle delivery, `when`, variable substitution) remains unverified because plugins.md defers to plugins-reference#monitors; the note's open questions 1-2 correctly flag this."
+   ]
+  },
+  {
+   "note": "skills-commands",
+   "file": "skills-commands-agents.md",
+   "claims_checked": 142,
+   "errors_found": 9,
+   "errors_fixed": 9,
+   "checklist_items_added": 4,
+   "remaining_concerns": [
+    "The npm 'latest' Claude Code version could not be verified (no network in this session); the note now states only the highest version marker found in the docs (v2.1.273) and the confirmed local v2.1.218.",
+    "Whether plugin agents are valid values for a skill's `agent` field is not stated in skills.md (L741 names only built-ins and `.claude/agents/`); the note now flags this rather than assuming.",
+    "Whether `background: true` is honored on plugin agents remains undocumented (sub-agents.md L236 excludes only `hooks`, `mcpServers`, `permissionMode`); note already lists this as open question 5.",
+    "Order of `$ARGUMENTS` expansion relative to `!` command execution is not documented (open question 2); this matters for the notify skill if user text flows into an injected shell command.",
+    "The sub-agents.md review was limited to the ranges the researcher cited plus a full-file grep for 'plugin' and 'background'; tutorial sections (L1-154, L346-402, L431-547, L601-706, L771-796, L913-988, L1031-1384) were not read line by line, per the task scope."
+   ]
+  },
+  {
+   "note": "mcp-channels",
+   "file": "mcp-and-channels.md",
+   "claims_checked": 118,
+   "errors_found": 8,
+   "errors_fixed": 8,
+   "checklist_items_added": 7,
+   "remaining_concerns": [
+    "Implication 10 mentions a '6 KB digest cap'; that number comes from the Synchrobuilder brief, not from either source, and I could not verify it here. Left as-is because it is a comparison to the project spec, not a docs claim.",
+    "Section 2.10 and Open question 8: neither source says whether channels register in `claude -p`/headless runs or whether the development-flag dialog blocks a non-interactive start. My grep for `headless`, `claude -p`, `non-interactive`, and `interactive` in channels-reference.md returned nothing, so 'Not found in docs' is correct, but the answer matters for the design and can only come from an experiment or the channels.md page (not in this assignment).",
+    "Section 1.4 (Windows): confirmed absent from mcp.md (only L1093 WSL import note and L1154 WSL connectors). Any Windows `cmd /c` guidance would have to come from another page; the note correctly says so.",
+    "Open question 1 (prompt prefix for plugin servers) remains undocumented in mcp.md; L506 hints at `plugin:<plugin>:<server>` being the configured server name, which would make `/sb:audit` unlikely, but this is inference, flagged as such in the note.",
+    "Line 8 no longer claims a docs release version; if the parent needs the npm 'latest' figure it must be sourced separately (not available in the raw files)."
+   ]
+  },
+  {
+   "note": "statusline-settings",
+   "file": "statusline-and-settings.md",
+   "claims_checked": 118,
+   "errors_found": 13,
+   "errors_fixed": 13,
+   "checklist_items_added": 4,
+   "remaining_concerns": [
+    "Checklist item 5 (hooks from project settings requiring trust): the note is correct that none of the three source files states the rule directly; only the indirect 'same workspace trust rule as hooks in settings files' phrasing exists (statusline.md L1171, settings-reference L3896) and it links to permissions.md, which was outside this note's source set. permissions.md is present in docs-raw and should be consulted before relying on the trust rule.",
+    "Checklist item 4 (permissions Skill rules): confirmed absent from settings-reference.md (no `Skill(` anywhere; no 'skill' in the permissions region L1397-L1700). The rule syntax lives on the permissions page, outside these sources.",
+    "The note's Implication 3 ('30-60 s sync loop') and the v2.1.218 experiment references are project design assumptions, not doc claims; I left them but they carry no citation.",
+    "Whether `${CLAUDE_PLUGIN_ROOT}` expands in a statusLine.command written to user settings, and whether a plugin's settings.json can carry `hooks`-adjacent keys beyond agent/subagentStatusLine, cannot be settled from these three files (plugins.md L269/L279 and plugins-reference.md L955 say only agent and subagentStatusLine; 'Unknown keys are silently ignored')."
+   ]
+  },
+  {
+   "note": "monitors-tools-env",
+   "file": "monitors-tools-env.md",
+   "claims_checked": 160,
+   "errors_found": 10,
+   "errors_fixed": 10,
+   "checklist_items_added": 6,
+   "remaining_concerns": [
+    "Plugin-monitor deadline vs session lifetime (checklist item 2) is still unsettled: tools-reference.md L335 scopes the 5/30/10-minute deadline to \"Every watch Claude starts\", plugins-reference.md L293 says plugin monitors run \"for the lifetime of the session\", and neither page reconciles the two. The note states this correctly; only an experiment can settle it.",
+    "How a Monitor output line is rendered to Claude (label, truncation, batching) is genuinely absent from tools-reference.md; the note's \"Not found in docs\" stands.",
+    "Whether CLAUDE_PLUGIN_ROOT/DATA/PROJECT_DIR reach plugin monitor processes (as environment, not placeholder substitution) is not stated: plugins-reference.md L721 names hook, MCP and LSP processes only. Flagged in the note.",
+    "CLAUDE_CODE_ENTRYPOINT, NODE_USE_SYSTEM_CA and NODE_EXTRA_CA_CERTS are confirmed absent from env-vars.md and tools-reference.md; the network-config and hooks pages (outside this assignment) may document them, so \"Not found in docs\" here means not found in these sources.",
+    "The note's interactive-vs-headless detection question (item 5) remains open: no env-vars row distinguishes claude -p from an interactive TUI; the hooks page's SessionStart input is the likely source and was not in scope.",
+    "The claim in Implication 7 that Synchrobuilder hooks are invoked as `node \"<path>\"` is a design assumption from the brief, not a documented fact; it is labelled as an implication and left as is."
+   ]
+  },
+  {
+   "note": "teams-messaging",
+   "file": "agent-teams-and-cross-session-messaging.md",
+   "claims_checked": 142,
+   "errors_found": 10,
+   "errors_fixed": 10,
+   "checklist_items_added": 5,
+   "remaining_concerns": [
+    "The channels feature (cross-session-messaging.md L34; remote-control.md L464) is potentially the most relevant built-in for Synchrobuilder's notify path and is only referenced, never described, in these sources. The channels page must be fetched before the socket-vs-channels design decision is made.",
+    "remote-control.md is internally inconsistent on plan eligibility (L10 \"all plans\" vs L30 \"Pro, Max, Team, and Enterprise\"). Both statements exclude API keys, so the fact base's conclusion is unaffected, but the note cannot say which wording is authoritative.",
+    "The Remote Control 'cannot connect two different developers' conclusion rests on absence of evidence (no sharing mechanism documented, L200 'grants no one else access', L427/L442 different-account handling). The sources do not contain an explicit sentence saying a session can never be shared with another account; the conclusion is an inference from every scoping statement, as the checklist asked.",
+    "The note's Implications section relies on the inbox socket wire format, which the docs never specify beyond the auth line (L279). This is flagged as an open question but cannot be resolved from the sources; the local CLI (v2.1.218) predates the feature (v2.1.224), so it also cannot be settled by local experiment yet.",
+    "cross-session-messaging.md L272 exports CLAUDE_CODE_MESSAGING_SOCKET only 'In a session that starts with messaging on'; the sources do not say what a session that gains messaging later (e.g. after a settings change) exports to hooks. Left as open question 2.",
+    "Line count for agent-teams.md is 489 by wc -l but the file has 490 numbered lines (no trailing newline); citations in the note use the 1-based numbered lines, which match the source as read, so no citation is off by one."
+   ]
+  },
+  {
+   "note": "cli-permissions-errors",
+   "file": "cli-permissions-errors.md",
+   "claims_checked": 142,
+   "errors_found": 13,
+   "errors_fixed": 13,
+   "checklist_items_added": 6,
+   "remaining_concerns": [
+    "permission-modes.md is not in docs-raw, so the 'actions no mode auto-approves' list and per-mode behavior of a PreToolUse hook 'ask' remain unverified; the note correctly marks both as not found.",
+    "errors.md L2085 ('confirmation required, and this session cannot ask') is about PreModelSwitch hooks; the note's extrapolation to a PreToolUse collision hook in -p runs is now labelled as inference but is still unproven and should be tested on 2.1.218.",
+    "Whether the plugin's own settings.json permissions.allow is honored (open question 5) is not answerable from these three files.",
+    "Many entries carry version markers up to v2.1.274 while the local CLI is 2.1.218; behaviors marked v2.1.246+, v2.1.257+, v2.1.259+, v2.1.260+, v2.1.265+, v2.1.269+, v2.1.274+ in the note will not exist locally, and the note's per-item markers are the only guard.",
+    "The '--permission-prompts none' flag (v2.1.259+) that the note's implications lean on is not available on the local 2.1.218 CLI."
+   ]
+  },
+  {
+   "note": "windows-notes",
+   "file": "windows-notes.md",
+   "claims_checked": 236,
+   "errors_found": 9,
+   "errors_fixed": 9,
+   "checklist_items_added": 7,
+   "remaining_concerns": [
+    "Which shell runs a plugin monitor `command` and a stdio MCP server `command` on Windows is genuinely absent from every raw file (grep of plugins-reference.md, tools-reference.md, mcp.md, errors.md for windows/powershell/git bash/cmd). The note's \"Not found in docs\" for both is correct; it remains the largest untested surface for a Node-based monitor.",
+    "Whether `${CLAUDE_PLUGIN_ROOT}` substituted into exec-form `args` on Windows carries backslashes or forward slashes is not stated anywhere in hooks.md; only tool_input.file_path (backslashes) and permission-rule normalization (POSIX) are documented.",
+    "No source states CRLF handling for hooks.json / SKILL.md / plugin.json, MAX_PATH/260-char limits, or filesystem case-insensitivity in general; the note's three \"Not found in docs\" statements in Section 7 are confirmed by a full grep (CRLF appears only at hooks.md L2870/L2900; no 'MAX_PATH', 'long path', or '260' hits).",
+    "The note's claim that the docs cover 'up to v2.1.276' could not be sourced; the highest marker in the raw files is v2.1.275 and I rewrote the line accordingly. If the caller has an npm receipt for 2.1.276 it can be re-added with that receipt, not from the docs.",
+    "errors.md L3768-L3777 (Windows background service started via PowerShell 7 or 5.1, EUNKNOWN under AppLocker/Group Policy) and L3425 (AppContainer sandbox refusal fixed in v2.1.265) were not added because they concern `claude --bg`/agent view rather than any checklist topic; flagging in case Synchrobuilder's background sync design relies on `--bg`."
+   ]
+  },
+  {
+   "note": "prior-art-relay",
+   "file": "prior-art-relay-notes.md",
+   "claims_checked": 214,
+   "errors_found": 11,
+   "errors_fixed": 11,
+   "checklist_items_added": 2,
+   "remaining_concerns": [
+    "Note line 6 says the Claude Code docs were fetched on 2026-09-18 and describe up to v2.1.276; I confirmed the local CLI version and that docs/research/README.md makes the same statement, but I did not independently verify the npm 'latest' version.",
+    "Section 5 describes Egregore as 'bash + jq, optional Neo4j' (prior-art.md L5). The source also mentions a Python ingest layer; omitted but not wrong.",
+    "All timing figures in section 3/4 are Relay's own stats.jsonl numbers; the note correctly labels them in-process, but Relay's DESIGN.md L454 '65 ms' pre-edit figure is a design-table estimate, not a measurement, and the note's wording ('puts pre-edit at 65 ms typical') is accurate only in that sense.",
+    "The two fixtures in section 7 were confirmed byte-for-byte against scripts/smoke/pre-edit.json and session-start.json; note that stop.json also carries `stop_hook_active`, which the note's field list omits (harmless).",
+    "Statements taken from DESIGN.md that describe hub-side behaviour (digest rendering order, breaker semantics, Vercel/Neon assumptions) were checked against DESIGN.md text only; I did not read apps/api to confirm the hub implements them, and the checklist did not require it."
+   ]
+  }
+ ]
+}
