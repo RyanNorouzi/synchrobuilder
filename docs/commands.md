@@ -20,9 +20,9 @@ paragraph. Keys: Slash, Short form, CLI, Pillar, Phase, Status, Summary.
 Reports import-path casing that only works on case-insensitive disks, files whose names differ only by case, Unix-only commands and shell syntax in package scripts, hardcoded absolute or home-directory paths, required shell scripts with no portable equivalent, line-ending problems, executable bits and symlinks, Windows-illegal file names and over-long paths, `python` versus `python3` and virtualenv paths, native or architecture-specific dependencies, and README setup steps that only work on one OS. Prints a readable report, writes a JSON report, and gives a score from 0 to 100. Exits non-zero only with `--strict`, so it can gate CI.
 
 ## fix
-- Slash: /synchrobuilder:fix [rule-id]
+- Slash: /synchrobuilder:fix [--only ids-or-paths]
 - Short form: /fix
-- CLI: npx synchrobuilder fix [--dry-run] [--yes]
+- CLI: npx synchrobuilder fix [--dry-run] [--yes] [--only ids-or-paths]
 - Pillar: Portability
 - Phase: 3
 - Status: planned
@@ -42,9 +42,9 @@ Fixers cover import casing, `.gitattributes` line-ending rules, Unix commands in
 The guard is a hook that re-audits a file right after Claude writes or edits it and tells Claude, in the same turn, if a new portability problem appeared. It is advisory only. Mute writes a per-checkout flag under `~/.synchrobuilder/`; the hook still runs but prints nothing.
 
 ## init
-- Slash: /synchrobuilder:init [--refresh]
+- Slash: /synchrobuilder:init [--refresh] [--team]
 - Short form: none (`/init` belongs to Claude Code)
-- CLI: npx synchrobuilder init [--refresh]
+- CLI: npx synchrobuilder init [--refresh] [--team [--yes]]
 - Pillar: Portability
 - Phase: 4
 - Status: planned
@@ -53,9 +53,9 @@ The guard is a hook that re-audits a file right after Claude writes or edits it 
 Detects required runtimes with exact versions, the package manager, services such as a database, environment variable names with descriptions (never values), install, migrate, seed and start commands, and a health check. The format is documented on the Manifest page and is not tied to Claude.
 
 ## setup
-- Slash: /synchrobuilder:setup
+- Slash: /synchrobuilder:setup [--plan]
 - Short form: /setup
-- CLI: npx synchrobuilder setup [--yes]
+- CLI: npx synchrobuilder setup [--plan] [--yes] [--json]
 - Pillar: Portability
 - Phase: 4
 - Status: planned
@@ -64,9 +64,9 @@ Detects required runtimes with exact versions, the package manager, services suc
 Uses the OS's native package manager (winget, Homebrew, apt), pins exact versions, never elevates silently, and ends with a pass or fail plus the evidence.
 
 ## doctor
-- Slash: /synchrobuilder:doctor
+- Slash: /synchrobuilder:doctor [--record]
 - Short form: none (`/doctor` belongs to Claude Code)
-- CLI: npx synchrobuilder doctor
+- CLI: npx synchrobuilder doctor [--record] [--json]
 - Pillar: Portability
 - Phase: 4
 - Status: planned
@@ -75,9 +75,9 @@ Uses the OS's native package manager (winget, Homebrew, apt), pins exact version
 Also checks the things the plugin itself needs: `node` and `git` on PATH, the plugin's data directory, whether background monitors are available, and whether the sync transport can reach the remote.
 
 ## ci
-- Slash: /synchrobuilder:ci
+- Slash: /synchrobuilder:ci [--write]
 - Short form: /ci
-- CLI: npx synchrobuilder ci
+- CLI: npx synchrobuilder ci [--write]
 - Pillar: Portability
 - Phase: 4
 - Status: planned
@@ -139,18 +139,18 @@ Before a teammate's Claude edits a file you claimed or are actively editing, it 
 Messages are limited to 400 characters, pass secret redaction before leaving your machine, and are sanitized again on the receiving side.
 
 ## board
-- Slash: /synchrobuilder:board [add|take|done|next] [...]
+- Slash: /synchrobuilder:board [list|add|take|done|next] [...]
 - Short form: /board
-- CLI: npx synchrobuilder board [add|take|done|next] [...]
+- CLI: npx synchrobuilder board [list|add <title> [--deps a,b]|take <id> [--force]|done <id>|next]
 - Pillar: Multiplayer
 - Phase: 6
 - Status: planned
 - Summary: A minimal shared task list with dependencies; a teammate's Claude can pick up the next unclaimed, unblocked task.
 
 ## handoff
-- Slash: /synchrobuilder:handoff [handle]
+- Slash: /synchrobuilder:handoff [handle] [--draft] [--confirm <draft id>]
 - Short form: /handoff
-- CLI: npx synchrobuilder handoff [handle]
+- CLI: npx synchrobuilder handoff [handle] [--draft] [--confirm <draft id> [--task t] [--done "a; b"] [--next ..] [--decisions ..] [--blockers ..] [--interfaces ..] [--files a;b] [--for a,b]]
 - Pillar: Multiplayer
 - Phase: 6
 - Status: planned
@@ -159,9 +159,9 @@ Messages are limited to 400 characters, pass secret redaction before leaving you
 A handoff is also staged automatically as a session runs and finalized when it ends. It is built by heuristics from local events, never from transcripts and never by an extra model call.
 
 ## statusline
-- Slash: /synchrobuilder:statusline [install|remove]
+- Slash: /synchrobuilder:statusline [install|remove] [--plan] [--yes]
 - Short form: /statusline is Claude Code's own; use the full form
-- CLI: npx synchrobuilder statusline [install|remove]
+- CLI: npx synchrobuilder statusline [install|remove] [--plan] [--yes]
 - Pillar: Multiplayer
 - Phase: 6
 - Status: planned

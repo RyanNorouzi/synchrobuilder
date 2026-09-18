@@ -1,6 +1,6 @@
 ---
 description: Propose a fix for each fixable audit finding, show the diff, and apply it only after you approve.
-argument-hint: "[rule-id]"
+argument-hint: "[--only ids-or-paths]"
 disable-model-invocation: true
 allowed-tools: Bash(node *), PowerShell(node *)
 ---

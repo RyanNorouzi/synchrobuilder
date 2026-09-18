@@ -1,6 +1,6 @@
 ---
 description: Offer to add team presence to your Claude Code status line.
-argument-hint: "[install|remove]"
+argument-hint: "[install|remove] [--plan] [--yes]"
 disable-model-invocation: true
 allowed-tools: Bash(node *), PowerShell(node *)
 ---

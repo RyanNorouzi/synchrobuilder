@@ -1,6 +1,6 @@
 ---
 description: Write a structured handoff (done, files changed, interfaces changed, decisions, blockers, next steps, who it is for) from this session's local events.
-argument-hint: "[handle]"
+argument-hint: "[handle] [--draft] [--confirm <draft id>]"
 disable-model-invocation: true
 allowed-tools: Bash(node *), PowerShell(node *)
 ---

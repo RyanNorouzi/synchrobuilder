@@ -1,5 +1,6 @@
 ---
 description: On a new machine, compare the manifest to what is installed, show a step-by-step plan for this OS, ask before each install, then run the health check.
+argument-hint: "[--plan]"
 disable-model-invocation: true
 allowed-tools: Bash(node *), PowerShell(node *)
 ---

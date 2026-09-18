@@ -1,5 +1,6 @@
 ---
 description: Generate a GitHub Actions workflow that installs, builds, tests and health-checks the project on ubuntu, macos and windows, plus a README badge.
+argument-hint: "[--write]"
 disable-model-invocation: true
 allowed-tools: Bash(node *), PowerShell(node *)
 ---

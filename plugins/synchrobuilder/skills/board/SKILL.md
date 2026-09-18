@@ -1,6 +1,6 @@
 ---
 description: A minimal shared task list with dependencies; a teammate's Claude can pick up the next unclaimed, unblocked task.
-argument-hint: "[add|take|done|next] [...]"
+argument-hint: "[list|add|take|done|next] [...]"
 disable-model-invocation: true
 allowed-tools: Bash(node *), PowerShell(node *)
 ---

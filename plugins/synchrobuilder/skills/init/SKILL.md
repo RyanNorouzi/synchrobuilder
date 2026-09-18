@@ -1,6 +1,6 @@
 ---
 description: Inspect the project and write `synchrobuilder.json`, the manifest other machines use to set the project up.
-argument-hint: "[--refresh]"
+argument-hint: "[--refresh] [--team]"
 disable-model-invocation: true
 allowed-tools: Bash(node *), PowerShell(node *)
 ---

@@ -1,5 +1,6 @@
 ---
 description: Record a fingerprint of a working machine, or explain why this machine differs from the manifest, most likely cause first.
+argument-hint: "[--record]"
 disable-model-invocation: true
 allowed-tools: Bash(node *), PowerShell(node *)
 ---
