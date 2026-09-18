@@ -1,0 +1,21 @@
+{
+  "name": "demo-shop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tiny order service used as the Synchrobuilder audit demo. Every portability bug in here is deliberate.",
+  "type": "module",
+  "scripts": {
+    "clean": "rm -rf dist && rm -rf .cache",
+    "prebuild": "npm run clean && mkdir -p dist && cp README.md dist/README.md",
+    "build": "export NODE_ENV=production && ./build.sh",
+    "test": "NODE_ENV=test node test/run.js && sh scripts/test.sh",
+    "migrate": "python scripts/migrate.py",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.7"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
