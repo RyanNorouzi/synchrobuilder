@@ -277,10 +277,15 @@ something works without showing the run; a red Windows job blocks release.
 
 ## 8. Open questions for you
 
+Decisions taken on 2026-09-18 when the owner said "start building": each
+question below is answered with a default that can be changed later; the
+defaults are marked **(default taken)**.
+
 1. **Names.** Keep `init`, `doctor`, `status` as in the brief (full form
    only, since the bare forms belong to Claude Code), or rename to
    `manifest`, `diagnose`, `team` so the bare forms work? We lean to
    keeping the brief's names. Also: `board` for the task board?
+   **(default taken: brief's names kept; `board` for the task board.)**
 2. **Free-text commands and the background worker.** Two options:
    (A) skills tell Claude to run `node .../synchrobuilder.mjs notify <handle> "<text>"`
    through its Bash/PowerShell tool; simplest, but user text must be
@@ -292,26 +297,39 @@ something works without showing the run; a red Windows job blocks release.
    it with the session. We recommend B, with A as the fallback for
    `--strict-mcp-config` environments. Your call; B adds a process per
    session and about 300 lines of protocol code.
+   **(default taken: A for v1; the worker is the detached process from
+   ADR-001 section 5. B stays open.)**
 3. **Dev dependencies.** We propose none. Would you accept `tsc --checkJs`
    (TypeScript as a dev-only dependency) later for type checking of JSDoc?
+   **(default taken: none.)**
 4. **Status line consent flow.** OK to offer writing `statusLine` into the
    user's `~/.claude/settings.json` (shown in full, replaced not merged)?
+   **(default taken: yes, only with `--yes` after `--plan` shows the change,
+   with a backup of the settings file.)**
 5. **Ref namespace.** Default to `refs/synchrobuilder/<handle>` (hidden from
    branch UIs, verified locally and per GitHub's API docs) with fallback to
    branches `synchrobuilder/<handle>` when a host rejects it? We need a
    throwaway repo on your GitHub org to test the real push in Phase 5.
+   **(default taken: custom refs first, branches as fallback; hosted test
+   still needed.)**
 6. **GitHub owner/repo and marketplace name.** The install commands and
    website need the final `<owner>/<repo>`; we propose marketplace name
    `synchrobuilder` (install id `synchrobuilder@synchrobuilder`).
+   **(default taken: marketplace name `synchrobuilder`; OWNER/REPO still a
+   placeholder.)**
 7. **Node floor.** `>=20` (LTS) or `>=22`? We propose 20.
+   **(default taken: 20.)**
 8. **Guard scope.** v1 guards `Edit|Write|NotebookEdit` only, not edits made
-   through Bash (`sed -i`). Agree?
+   through Bash (`sed -i`). Agree? **(default taken: yes.)**
 9. **Website domain and waitlist address.** Placeholders until you decide;
    the site cannot ship "coming soon" pricing without an email target.
 10. **Testing the marketplace install on your machine.** It writes to
     `~/.claude/plugins` and settings; we will only do it when you say so.
+    **(default taken: not done on your machine; headless runs use
+    `--plugin-dir` and a scratch `SYNCHROBUILDER_HOME`.)**
 11. **Relay credit.** We reuse ideas, not code. If we later copy any code,
-    we add the MIT notice and a `NOTICE` file. OK?
+    we add the MIT notice and a `NOTICE` file. OK? **(default taken: ideas
+    only; no code copied.)**
 
 ## 9. Phase 0 verification ledger
 
