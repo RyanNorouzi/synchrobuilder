@@ -1,0 +1,101 @@
+<!-- page: home | title: Synchrobuilder | description: Multiplayer Claude Code for teams on any laptop. No server, safe by design. -->
+<div class="wrap">
+  <section class="hero" aria-labelledby="pitch">
+    <p class="eyebrow">A Claude Code plugin · MIT · macOS, Windows, Linux</p>
+    <h1 id="pitch">Multiplayer Claude Code for teams on any laptop.</h1>
+    <p class="lede">No server, safe by design. Synchrobuilder keeps your project running on all three operating systems while Claude writes code, and lets several developers work in one repo at the same time, each Claude aware of what the others are doing. It uses the git remote you already have.</p>
+    <div class="hero-meta">
+      <span>Nothing to host</span>
+      <span>Plain Node, no dependencies</span>
+      <span>Fails open: it can never stop you coding</span>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="install" aria-labelledby="install-title">
+    <div class="install-head">
+      <span class="eyebrow" id="install-title">Install in Claude Code · two commands</span>
+      <span class="pill pill--planned">not published yet</span>
+    </div>
+    <div class="cmd"><code><span class="step">1</span>/plugin marketplace add <em class="ph">OWNER/REPO</em></code><button class="copy" type="button">Copy</button></div>
+    <div class="cmd"><code><span class="step">2</span>/plugin install synchrobuilder@synchrobuilder</code><button class="copy" type="button">Copy</button></div>
+    <div class="install-foot">The command shapes are the ones the Claude Code docs specify for a GitHub-hosted marketplace. <em class="ph">OWNER/REPO</em> is a placeholder until the repository is public; the marketplace name <code>synchrobuilder</code> is the planned one. Full steps, prerequisites and per-OS troubleshooting are on the <a href="install.html">Install page</a>.</div>
+  </section>
+</div>
+
+<div class="wrap">
+  <div class="video-slot" role="img" aria-label="Placeholder for the demo video">
+    <div>
+      <span class="eyebrow">Placeholder</span>
+      <p>A 60-second demo on macOS, Windows and Linux will go here once the plugin exists. Nothing is recorded yet.</p>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <h2 class="visually-hidden">What it does</h2>
+  <section class="cards" aria-label="What it does">
+    <article class="card">
+      <span class="eyebrow">Run anywhere</span>
+      <h3>Portability, kept honest by CI</h3>
+      <ul>
+        <li>Audit finds OS-specific assumptions: import casing, Unix-only scripts, hardcoded paths, line endings, Windows-illegal names, native binaries, one-OS READMEs.</li>
+        <li>Fix proposes each change as a diff and applies it only when you say so.</li>
+        <li>A guard re-audits every file Claude edits and tells it, in the same turn, if it just broke another OS.</li>
+        <li>A manifest, setup, doctor and a three-OS GitHub Actions workflow get a teammate from clone to passing health check.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <span class="eyebrow">Stay in sync</span>
+      <h3>Presence over your git remote</h3>
+      <ul>
+        <li>Each developer publishes their own small state ref; nobody merges anything and nobody hosts anything.</li>
+        <li>Session start injects a short digest: who is active, claims that touch your area, messages for you, handoffs since you left.</li>
+        <li>Claims and collision warnings before an edit, at most once per file per 30 minutes, never blocking.</li>
+        <li>Notify, a minimal task board, and structured handoffs built from local session events.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <span class="eyebrow">Safe by design</span>
+      <h3>Trust is earned by the code</h3>
+      <ul>
+        <li>Every hook exits cleanly with no output on any internal error and logs locally. Offline or slow, you keep coding.</li>
+        <li>Only handle, branch, a 140-character task summary, repo-relative paths, short messages and handoff notes ever leave your machine, after secret redaction.</li>
+        <li>Anything from another machine is wrapped as untrusted data that Claude is told not to follow as instructions.</li>
+        <li>Anything that changes your machine shows the plan first and asks before each step. No silent sudo.</li>
+      </ul>
+    </article>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="section" aria-labelledby="real-title">
+    <div class="rail">
+      <h2 id="real-title">What is real today</h2>
+      <p>This site never claims more than a test or a recorded run in the repository proves.</p>
+    </div>
+    <div class="content">
+      <div class="measure">
+        <p>Phase 0 is done: the Claude Code plugin, hook, marketplace, skill, monitor and status line documentation was read, line by line, and every design decision is recorded with its evidence. The plugin code starts in Phase 1 after the owner approves the plan.</p>
+        <p>Verified so far on macOS with Claude Code 2.1.218, with commands and output recorded in the research notes: exec-form Node hooks fire for session start, prompt submit, pre-edit, post-edit, stop and session end in a real headless session; the context they inject reaches Claude in the same turn; a missing <code>node</code> never blocks the session; a hook costs about 20 ms end to end; a hook can start a background worker that outlives it; per-developer state refs round-trip through a plain git remote without touching anyone's branches.</p>
+        <p>Not verified yet: anything on Windows or Linux, the interactive install flow, permission prompts, the status line, and hosted git providers. All of it is listed as acceptance criteria in the plan.</p>
+      </div>
+      <div class="term" aria-label="Recorded terminal output">
+        <div class="term-bar"><span class="os"><span data-on>macOS</span><span>Windows</span><span>Linux</span></span><span class="title">real output · 2026-09-18 · claude 2.1.218</span></div>
+<pre><span class="c">$</span> claude plugin validate plugins/synchrobuilder
+Validating plugin manifest: …/plugins/synchrobuilder/.claude-plugin/plugin.json
+
+<span class="a">✔ Validation passed</span>
+
+<span class="c">$</span> claude -p "Create hello.txt … then list every SYNCHRO-TOKEN you can see" --plugin-dir …/plugin --output-format stream-json …
+<span class="c"># result event, is_error: false, num_turns: 2</span>
+<span class="p">SESSIONSTART
+PROMPT
+PREEDIT
+POSTEDIT</span></pre>
+      </div>
+      <p class="muted">The four tokens are markers the experiment hooks injected from SessionStart, UserPromptSubmit, PreToolUse and PostToolUse; Claude listing them proves the hook context arrived. The full experiment log is in <code>docs/research/experiments.md</code>.</p>
+    </div>
+  </section>
+</div>

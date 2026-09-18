@@ -1,0 +1,16 @@
+<!-- page: commands | title: Commands | description: Every Synchrobuilder slash command and CLI command, generated from the same reference the plugin ships. -->
+<div class="wrap">
+  <section class="section" aria-labelledby="commands-title">
+    <div class="rail">
+      <h2 id="commands-title">Commands</h2>
+      <p>Generated from <code>docs/commands.md</code> at build time, so this page and the plugin cannot drift. <!-- @count --> commands.</p>
+    </div>
+    <div class="content">
+      <div class="measure">
+        <p>Inside Claude Code every command is <code>/synchrobuilder:&lt;name&gt;</code>. Claude Code also accepts the bare short form, such as <code>/audit</code>, whenever no built-in command owns that name; <code>/init</code>, <code>/doctor</code> and <code>/status</code> are built-ins, so those three need the full form. Typing <code>/audit</code> highlights <code>/synchrobuilder:audit</code> in the menu on Claude Code 2.1.236 and later. Outside Claude Code and in CI, the same commands run as <code>npx synchrobuilder &lt;name&gt;</code>.</p>
+        <p>Every command below is planned: the interface is agreed, the code is not written. The status pill changes to <em>available</em> when a command ships and its tests pass.</p>
+      </div>
+      <!-- @commands -->
+    </div>
+  </section>
+</div>

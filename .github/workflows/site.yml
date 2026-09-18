@@ -1,0 +1,37 @@
+name: site
+# Builds the static site with the Node standard library only and deploys it to GitHub Pages.
+# One-command local equivalent: node site/build.mjs && node site/check.mjs
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', 'docs/commands.md', '.github/workflows/site.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node site/build.mjs
+      - run: node site/check.mjs
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

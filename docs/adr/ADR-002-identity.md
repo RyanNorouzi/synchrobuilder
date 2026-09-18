@@ -73,8 +73,11 @@ reads only, so they cannot shell out to `git` on the hot path.
   clone the repo and have a git email set.
 - Two developers who share one email (pairing on one machine) collide; the
   `iam` override exists for exactly that case.
-- The email never leaves the machine. Only the handle is pushed. The team file
-  is the only place emails appear, and it is already public to anyone who can
+- The email never leaves the machine by default. Only the handle is pushed;
+  state commits are authored as `<handle>@synchrobuilder.invalid`. A team may
+  opt in to real-email authorship for hosts whose push rules require it
+  (ADR-001 §1); that is a visible setting in `team.json`. The team file is
+  the only place emails appear, and it is already public to anyone who can
   read the repo's git history.
 - Impersonation is possible for anyone who can push. Signed state commits
   (`git commit-tree -S`) are a possible v2 hardening and are listed in

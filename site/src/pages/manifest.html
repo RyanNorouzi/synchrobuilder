@@ -1,0 +1,169 @@
+<!-- page: manifest | title: Manifest | description: The synchrobuilder.json project manifest, a JSON format any tool can adopt, described as proposed in ADR-004 ahead of the normative spec. -->
+<div class="wrap">
+  <section class="section" aria-labelledby="manifest-title">
+    <div class="rail">
+      <h2 id="manifest-title">The manifest</h2>
+      <p><code>synchrobuilder.json</code> describes what a project needs to run. This page states the format as proposed in ADR-004, which awaits approval. <span class="pill pill--planned">draft v1</span></p>
+    </div>
+    <div class="content">
+      <div class="note"><span class="eyebrow">Status</span>Draft v1, from ADR-004 (status: Proposed, dated 2026-09-18). The normative <code>docs/manifest-spec.md</code> arrives in Phase 4, together with the reader and writer. No code reads or writes this file yet.</div>
+      <div class="measure">
+        <h3>Purpose</h3>
+        <p><a href="commands.html">init</a> writes the manifest, setup and doctor read it on another machine, and ci turns it into a GitHub Actions matrix. The brief requires the format to be simple, versioned, documented, and not tied to Claude so other coding agents can adopt it. The plugin has no runtime dependencies, so the format must be parseable with the Node standard library.</p>
+        <h3>Principles</h3>
+        <ul>
+          <li><strong>JSON only.</strong> One file, <code>synchrobuilder.json</code>, at the repository root. UTF-8, LF, two-space indent when the plugin writes it. No comments in the file; explanations go in <code>hint</code> and <code>description</code> fields, which the tooling shows to humans.</li>
+          <li><strong>Integer version.</strong> A top-level <code>"version": 1</code>. Readers reject a higher major version with a clear message and accept lower ones with defaults. Additive changes do not bump the version; removals and semantic changes do.</li>
+          <li><strong>Exact runtime versions.</strong> <code>runtimes[].version</code> is an exact version string. Setup installs or verifies exactly that version; doctor reports the difference. Ranges are not allowed in v1, because "works on my machine" is the bug being removed. A semver range may be added as <code>allowedRange</code> in v2 without a version bump.</li>
+          <li><strong>Env var names and descriptions only.</strong> A value field is not part of the schema, and the writer refuses to serialize one.</li>
+          <li><strong>Commands are plain argument strings without shell syntax.</strong> The runner splits them with a small, documented tokenizer (quotes and backslash escapes only) and spawns the program directly. These tokens are rejected with a message pointing at the audit rule that explains why: <code>&amp;&amp;</code>, <code>|</code>, <code>$VAR</code>, <code>&gt;</code>. A project that needs a shell pipeline puts it in a Node script and calls that.</li>
+          <li><strong>Per-OS overrides are limited.</strong> <code>os.windows</code>, <code>os.macos</code> and <code>os.linux</code> may override <code>commands</code> and <code>runtimes</code> only. Nothing else is per-OS, on purpose.</li>
+          <li><strong>Extensions carry an <code>x-</code> prefix.</strong> Unknown top-level keys are allowed only with that prefix, which keeps the door open for other tools without silently accepting typos.</li>
+          <li><strong>Nothing mentions Claude.</strong> The file never names Claude, hooks or the plugin.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="section" aria-labelledby="example-title">
+    <div class="rail">
+      <h2 id="example-title">Example</h2>
+      <p>The skeleton from ADR-004, copied without changes. The project, versions and service in it are illustrative.</p>
+    </div>
+    <div class="content">
+      <div class="term" aria-label="Example synchrobuilder.json">
+        <div class="term-bar"><span class="title">skeleton · ADR-004 · no code reads or writes it yet</span></div>
+<pre>{
+  "$schema": "https://synchrobuilder.dev/schema/manifest-v1.json",
+  "version": 1,
+  "name": "acme-portal",
+  "runtimes": [
+    { "name": "node", "version": "24.16.0", "detect": "node --version" }
+  ],
+  "packageManager": { "name": "pnpm", "version": "10.22.0" },
+  "services": [
+    { "name": "postgres", "version": "16", "port": 5432,
+      "hint": "Any Postgres 16 reachable at DATABASE_URL" }
+  ],
+  "env": [
+    { "name": "DATABASE_URL", "description": "Postgres connection string", "required": true },
+    { "name": "SESSION_SECRET", "description": "Random 32+ character string", "required": true }
+  ],
+  "commands": {
+    "install": "pnpm install --frozen-lockfile",
+    "migrate": "pnpm prisma migrate deploy",
+    "seed": "pnpm run seed",
+    "start": "pnpm run dev",
+    "test": "pnpm test"
+  },
+  "healthCheck": {
+    "type": "http",
+    "url": "http://localhost:3000/health",
+    "timeoutSeconds": 60,
+    "expectStatus": 200
+  },
+  "os": {
+    "windows": { "commands": { "start": "pnpm run dev:win" } }
+  }
+}</pre>
+      </div>
+      <p class="muted">The <code>$schema</code> URL in this example is a placeholder. See the last section on this page.</p>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="section" aria-labelledby="fields-title">
+    <div class="rail">
+      <h2 id="fields-title">Fields</h2>
+      <p>ADR-004 fixes the shape and a few rules. Where it does not say whether a field is required, the spec will.</p>
+    </div>
+    <div class="content">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Field</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">What ADR-004 says</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>$schema</code></td><td>string (URL)</td><td>to be fixed in the spec</td><td>Points at a JSON schema served from the website so other tools can validate against it. The URL is a placeholder today.</td></tr>
+            <tr><td><code>version</code></td><td>integer</td><td>to be fixed in the spec</td><td><code>1</code> for this draft. Readers reject a higher version with a clear message and accept lower ones with defaults.</td></tr>
+            <tr><td><code>name</code></td><td>string</td><td>to be fixed in the spec</td><td>The project name. Only its presence in the example is agreed.</td></tr>
+            <tr><td><code>runtimes[]</code></td><td>array of <code>{ name, version, detect }</code></td><td>to be fixed in the spec</td><td><code>version</code> is an exact version string; ranges are not allowed in v1. <code>detect</code> is a command string, <code>node --version</code> in the example; its use is to be fixed in the spec.</td></tr>
+            <tr><td><code>packageManager</code></td><td><code>{ name, version }</code></td><td>to be fixed in the spec</td><td>Name and version of the package manager, <code>pnpm 10.22.0</code> in the example. ADR-004 requires exact versions for <code>runtimes[]</code> only; whether the same rule applies here is to be fixed in the spec.</td></tr>
+            <tr><td><code>services[]</code></td><td>array of <code>{ name, version, port, hint }</code></td><td>to be fixed in the spec</td><td>A service the project needs, such as a database. <code>hint</code> is human-facing text; redaction runs on it before anything is shared (ADR-005).</td></tr>
+            <tr><td><code>env[]</code></td><td>array of <code>{ name, description, required }</code></td><td>to be fixed in the spec</td><td>Names and descriptions only. A value field is not part of the schema and the writer refuses to serialize one. Redaction runs on <code>description</code> before anything is shared.</td></tr>
+            <tr><td><code>commands</code></td><td>object with <code>install</code>, <code>migrate</code>, <code>seed</code>, <code>start</code>, <code>test</code></td><td>to be fixed in the spec</td><td>Each value is a plain argument string without shell syntax. <code>&amp;&amp;</code>, <code>|</code>, <code>$VAR</code> and <code>&gt;</code> are rejected.</td></tr>
+            <tr><td><code>healthCheck</code></td><td><code>{ type, url, timeoutSeconds, expectStatus }</code> in the example</td><td>to be fixed in the spec</td><td><code>type</code> is <code>http</code> (GET a URL, expect a status) or <code>command</code> (spawn a program, expect exit 0). Both have a timeout. ADR-004 does not name the field that holds the program for the <code>command</code> type; the spec will.</td></tr>
+            <tr><td><code>os.windows</code>, <code>os.macos</code>, <code>os.linux</code></td><td>object with <code>commands</code> and/or <code>runtimes</code></td><td>optional (ADR-004: "may override")</td><td>May override <code>commands</code> and <code>runtimes</code> only. Nothing else is per-OS.</td></tr>
+            <tr><td><code>x-*</code></td><td>any</td><td>optional (ADR-004: "allowed")</td><td>The only unknown top-level keys a reader accepts. Any other unknown top-level key is not accepted silently, which catches typos.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">Field names, nesting and the rules in the last column are quoted or paraphrased from ADR-004. Types are read off the example; the spec will state them formally.</p>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="section" aria-labelledby="uses-title">
+    <div class="rail">
+      <h2 id="uses-title">How Synchrobuilder uses it</h2>
+      <p>Four planned Phase 4 commands. None exists yet; see the <a href="commands.html">Commands page</a>.</p>
+    </div>
+    <div class="content">
+      <div class="two-col">
+        <div class="list-box list-box--leaves">
+          <h3>Writes it</h3>
+          <ul>
+            <li><code>/synchrobuilder:init</code> inspects the project and writes <code>synchrobuilder.json</code>: runtimes with exact versions, the package manager, services such as a database, env var names with descriptions (never values), the install, migrate, seed and start commands, and a health check.</li>
+            <li>Exact versions mean the manifest changes whenever the team upgrades Node. <code>/synchrobuilder:init --refresh</code> re-detects and shows a diff.</li>
+          </ul>
+        </div>
+        <div class="list-box list-box--leaves">
+          <h3>Reads it</h3>
+          <ul>
+            <li><code>/synchrobuilder:setup</code> compares the manifest to what is installed, shows a step-by-step plan for this OS, asks before each install, then runs the health check. It uses the OS's native package manager (winget, Homebrew, apt), pins exact versions and never elevates silently.</li>
+            <li><code>/synchrobuilder:doctor</code> records a fingerprint of a working machine, or explains why this machine differs from the manifest, most likely cause first.</li>
+            <li><code>/synchrobuilder:ci</code> generates a GitHub Actions workflow that installs, builds, tests and health-checks the project on ubuntu, macos and windows, plus a README badge. The badge only says "verified" when that workflow passes.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="measure">
+        <p>Because the schema forbids values for env vars, an audit rule for "secret in manifest" is structurally unnecessary. Redaction still runs on <code>hint</code> and <code>description</code> text before anything is shared (ADR-005). The Phase 4 acceptance criteria in PLAN.md are: the demo repo's generated workflow passes on all three operating systems; setup on a clean CI runner reaches a passing health check for the demo repo; and doctor on a runner missing Postgres reports it first, with the OS-specific fix.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="section" aria-labelledby="windows-title">
+    <div class="rail">
+      <h2 id="windows-title">Commands on Windows, without a shell</h2>
+      <p>The runner never hands a command string to a shell. On Windows that needs one extra step.</p>
+    </div>
+    <div class="content">
+      <div class="measure">
+        <p>On Windows, <code>npm</code>, <code>pnpm</code> and <code>yarn</code> are installed as <code>.cmd</code> shims, and those cannot be spawned directly without a shell. The Claude Code hooks reference states the same limit for exec-form hooks: the <code>.cmd</code> and <code>.bat</code> shims that tools install "are not executables and can't be spawned without a shell", and the recommended fix is to invoke the underlying script with <code>node</code>, because <code>node.exe</code> is a real binary.</p>
+        <p>The planned runner follows that technique. It resolves the package manager to its JavaScript entry point and runs it with <code>node</code>: for npm, <code>&lt;node prefix&gt;/node_modules/npm/bin/npm-cli.js</code>; for Corepack-managed pnpm and yarn, the Corepack shim's JavaScript entry. If resolution fails, setup says so and offers to open a shell command for you to run yourself, rather than running a shell silently.</p>
+      </div>
+      <div class="note"><span class="eyebrow">Unverified</span>ADR-004 records that this entry-point resolution has not been run on a Windows machine. It is a Phase 4 acceptance test on the Windows CI runner, which does not exist yet. Everything verified so far ran on macOS with Claude Code 2.1.218 on 2026-09-18 and is listed in <code>docs/research/experiments.md</code>.</div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="section" aria-labelledby="schema-title">
+    <div class="rail">
+      <h2 id="schema-title">Schema URL</h2>
+      <p>A placeholder until the website domain is decided.</p>
+    </div>
+    <div class="content">
+      <div class="measure">
+        <p>The example points <code>$schema</code> at <code>https://synchrobuilder.dev/schema/manifest-v1.json</code>. That address is a placeholder: no schema file exists, nothing is served there, and the website domain is one of the open questions in PLAN.md. ADR-004 plans for the schema to be served from the website in Phase 7 so other tools can validate against it. Until then, ADR-004 in the repository is the source for everything on this page.</p>
+        <p>To read the source of these decisions, see <code>docs/adr/ADR-004-manifest-format.md</code> and <code>docs/commands.md</code> in the repository at <a href="https://github.com/OWNER/REPO">github.com/<em class="ph">OWNER/REPO</em></a> (placeholder until the repository is public).</p>
+      </div>
+    </div>
+  </section>
+</div>

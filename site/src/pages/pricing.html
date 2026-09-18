@@ -1,0 +1,125 @@
+<!-- page: pricing | title: Pricing | description: First 3 seats free forever, additional seats coming soon, and what v1 is planned to do about seats: a once-a-week note, nothing disabled. -->
+<div class="wrap">
+  <section class="section" aria-labelledby="pricing-title">
+    <div class="rail">
+      <h2 id="pricing-title">Pricing</h2>
+      <p>Nothing is for sale yet. The plugin is not built. This page states the plan so you can hold us to it.</p>
+    </div>
+    <div class="content">
+      <div class="measure">
+        <p>Synchrobuilder is a planned Claude Code plugin. Phase 0 (research and plan) is complete and no plugin code exists yet, so every feature named on this page is planned. A LICENSE file is a Phase 1 task in PLAN.md and does not exist yet. Pricing is decided now so that nobody installs on one basis and pays on another.</p>
+      </div>
+      <div class="two-col">
+        <article class="price price--free" aria-labelledby="price-free">
+          <span class="eyebrow">Free forever</span>
+          <h3 id="price-free">First 3 seats</h3>
+          <p class="amount">0 <small>USD, no time limit</small></p>
+          <ul>
+            <li>Every feature, both pillars: portability and multiplayer.</li>
+            <li>Up to three seats per team, forever.</li>
+            <li>No account, no card, no trial clock.</li>
+            <li>Same source, same plugin as a paying team.</li>
+          </ul>
+          <p class="muted">Free means the code is the same. There will be no separate free build.</p>
+        </article>
+        <article class="price price--soon" aria-labelledby="price-seat">
+          <span class="eyebrow">Additional seats <span class="pill pill--planned">coming soon</span></span>
+          <h3 id="price-seat">Each seat beyond three</h3>
+          <p class="amount">3 <small>USD per person per month, billed yearly</small></p>
+          <ul>
+            <li>Applies to the fourth seat and up.</li>
+            <li>No payment exists yet. v1 ships without payments or license enforcement.</li>
+            <li>Join the list to hear when billing exists: <a href="mailto:hello@example.invalid">hello@example.invalid</a> (placeholder address; the real one is not chosen yet).</li>
+          </ul>
+          <p class="muted">There is no payment form on this site and there will not be one until billing exists.</p>
+        </article>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <caption class="eyebrow" style="text-align:left;padding:.6rem .8rem">At a glance</caption>
+          <thead>
+            <tr><th scope="col">Who</th><th scope="col">Price</th><th scope="col">Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Seats 1 to 3, any team</td><td>Free forever</td><td><span class="pill pill--planned">plugin not built</span></td></tr>
+            <tr><td>Seat 4 and up</td><td>3 USD per person per month, billed yearly</td><td><span class="pill pill--planned">coming soon</span></td></tr>
+            <tr><td>Students and classroom teams</td><td>Free at any size</td><td><span class="pill pill--planned">process undecided</span></td></tr>
+            <tr><td>Founding teams (first 50 paying)</td><td>Half off for life</td><td><span class="pill pill--planned">coming soon</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <span class="eyebrow">Students and classrooms</span>
+        <p>Students and classroom teams: free at any size. How a team shows that it is a classroom is not decided yet. Nothing about it is written down in the plan, and we will not invent a process here. Until billing exists it needs no process at all, because nothing is enforced.</p>
+      </div>
+      <div class="note">
+        <span class="eyebrow">Founding teams</span>
+        <p>Founding teams: half off for life for the first 50 paying teams. "Paying" means the team pays for additional seats once billing exists. There is no list to join for this beyond the placeholder address above.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="section" aria-labelledby="seats-title">
+    <div class="rail">
+      <h2 id="seats-title">What v1 will do about seats</h2>
+      <p>Planned: one isolated module, one friendly note, nothing disabled.</p>
+    </div>
+    <div class="content">
+      <div class="measure">
+        <p>v1 has no payments, no license enforcement and no accounts. The plan gives the plugin no way to know who is paying and no server to ask.</p>
+        <p>The only seat-related behaviour is a count. The plan for <code>/synchrobuilder:status</code> is to count distinct active handles over the last 30 days, using the local team state the plugin is designed to keep on your machine anyway. A handle is the identity Synchrobuilder derives from your git email through the committed <code>.synchrobuilder/team.json</code> file. When that count is more than three, <a href="commands.html#cmd-status">status</a> would show a friendly, non-blocking note once a week that points at this page. That is the whole mechanism.</p>
+        <p>The logic is planned as a single isolated file, <code>lib/seats.mjs</code>, so you can read it in one sitting and confirm it does nothing else. PLAN.md lists it under Phase 6, with this acceptance test: the notice appears once per week only when more than three handles were active in 30 days.</p>
+      </div>
+      <div class="two-col">
+        <div class="list-box">
+          <h3>What the count does</h3>
+          <ul>
+            <li>Counts distinct handles active in the last 30 days.</li>
+            <li>Shows one note per week in <code>/synchrobuilder:status</code> when the count is above three.</li>
+            <li>Points at this page.</li>
+            <li>Lives in <code>lib/seats.mjs</code> and nowhere else.</li>
+          </ul>
+        </div>
+        <div class="list-box list-box--never">
+          <h3>What it never does</h3>
+          <ul>
+            <li>Disable a feature, a command or a hook.</li>
+            <li>Block a prompt, an edit or a sync.</li>
+            <li>Contact a server or send the count anywhere.</li>
+            <li>Ask for a card, a key or a login.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="muted">Every claim in this section is planned behaviour from PLAN.md (Phase 6) and <code>docs/commands.md</code> (the <code>status</code> entry). None of it is written or tested yet.</p>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="section" aria-labelledby="faq-title">
+    <div class="rail">
+      <h2 id="faq-title">Questions</h2>
+      <p>Short answers with the design document they come from. Every answer describes the plan; none of it is built.</p>
+    </div>
+    <div class="content">
+      <div class="measure">
+        <h3>Do I need an account?</h3>
+        <p>No. There is no sign-up, no password and no token. Your identity is a handle: your <code>git config user.email</code> is matched against the <code>.synchrobuilder/team.json</code> file committed in the repo. If your email is not listed you get a provisional handle derived from it and keep working. <code>/synchrobuilder:iam</code> overrides the handle for one checkout on one machine. See <a href="how-it-works.html">How it works</a> and ADR-002.</p>
+
+        <h3>Is there a server?</h3>
+        <p>No. Team state travels over the git remote you already have. Each developer and device publishes one small ref of its own; nothing is merged and nothing is hosted. A team that can push to its remote can use it. See ADR-001 and the <a href="security.html">Security page</a>.</p>
+
+        <h3>What counts as a seat?</h3>
+        <p>Per the plan, a seat is a distinct handle that was active in the last 30 days. The plan gives the plugin nothing else to count: a handle is the identity (ADR-002). The details may change while the plugin is built, and they will be documented on this page before any billing exists.</p>
+
+        <h3>Can I self-host?</h3>
+        <p>There is nothing to host. The plugin is designed to run on each developer's laptop and talk to your git remote. A hosted hub is out of scope for v1; ADR-001 keeps the transport interface open for one later, but nothing about that is built or priced.</p>
+
+        <h3>Where do I install it?</h3>
+        <p>Nowhere yet. The install commands on the <a href="install.html">Install page</a> are the planned ones, and the repository <code><em class="ph">OWNER/REPO</em></code> is a placeholder until the code is public.</p>
+      </div>
+    </div>
+  </section>
+</div>

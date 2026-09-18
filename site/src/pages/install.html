@@ -1,0 +1,179 @@
+<!-- page: install | title: Install | description: Prerequisites, the two install commands, first run, update and uninstall, and per-OS troubleshooting for the planned Synchrobuilder plugin. -->
+<div class="wrap">
+  <section class="section" aria-labelledby="prereq-title">
+    <div class="rail">
+      <h2 id="prereq-title">Prerequisites</h2>
+      <p>Three things on the machine. Nothing to host, nothing to sign up for.</p>
+    </div>
+    <div class="content">
+      <div class="note"><span class="eyebrow">Status</span>The plugin is not built or published yet. Phase 0 (research and plan) is complete. The <code>/plugin</code> and <code>claude plugin</code> commands on this page have the shape the Claude Code docs specify. Every <code>/synchrobuilder:</code> command and every <code>npx synchrobuilder</code> command is planned, not shipped.</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Requirement</th><th scope="col">Why</th></tr></thead>
+          <tbody>
+            <tr><td>Claude Code, a current version</td><td>The docs we read describe Claude Code up to 2.1.276. Our experiments ran on 2.1.218 on macOS. The <code>/plugin</code> command needs a release that has it; the docs say to upgrade with <code>brew upgrade claude-code</code> or <code>npm install -g @anthropic-ai/claude-code@latest</code>.</td></tr>
+            <tr><td>Node.js 20 or newer on <code>PATH</code></td><td>Every hook is declared in exec form as the <code>node</code> executable plus a script path, with no shell. Claude Code resolves <code>node</code> from the <code>PATH</code> it inherited. If <code>node</code> is missing, every hook shows a non-blocking error notice and the plugin does nothing (experiment E3). Node 20 is the proposed floor; the plan lists 22 as the alternative.</td></tr>
+            <tr><td>git on <code>PATH</code></td><td>The docs say Claude Code clones a git-hosted marketplace onto your machine, so adding one needs git. The multiplayer transport publishes state through your existing git remote, so the background worker needs git too. The hooks themselves never spawn git.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="measure">
+        <p>The Node requirement is the one to check first. A hook cannot fix a missing <code>node</code> from inside itself, because Claude Code resolves the executable before any of our code runs. The planned <code>/synchrobuilder:doctor</code> checks <code>node</code> and <code>git</code> on <code>PATH</code> and reports the fix for your OS.</p>
+      </div>
+      <div class="term" aria-label="Recorded output when node is not on PATH">
+        <div class="term-bar"><span class="os"><span data-on>macOS</span><span>Windows</span><span>Linux</span></span><span class="title">experiment E3 · 2026-09-18 · claude 2.1.218</span></div>
+<pre><span class="c">$ env -i HOME=… PATH=/usr/bin:/bin claude -p "…" --plugin-dir …/plugin --output-format stream-json …</span>
+<span class="c"># every hook_response event:</span>
+<span class="w">"stderr":"Error occurred while executing hook command: Executable not found in $PATH: \"node\"","exit_code":1,"outcome":"error"</span>
+<span class="c"># result event:</span>
+<span class="a">exit 0, is_error: false</span>   <span class="c">the file was still created; Claude saw no hook context</span></pre>
+      </div>
+      <p class="muted">Recorded with the Phase 0 experiment plugin, not with Synchrobuilder, which does not exist yet. The fail-open contract it demonstrates is the one Synchrobuilder's hooks are designed to keep.</p>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="section" aria-labelledby="install-title">
+    <div class="rail">
+      <h2 id="install-title">Install</h2>
+      <p>Two commands inside Claude Code, or the same two in a terminal.</p>
+    </div>
+    <div class="content">
+      <div class="install">
+        <div class="install-head">
+          <span class="eyebrow">Inside a Claude Code session</span>
+          <span class="pill pill--planned">not published yet</span>
+        </div>
+        <div class="cmd"><code>/plugin marketplace add <em class="ph">OWNER/REPO</em></code><button class="copy" type="button">Copy</button></div>
+        <div class="cmd"><code>/plugin install synchrobuilder@synchrobuilder</code><button class="copy" type="button">Copy</button></div>
+        <div class="install-foot"><em class="ph">OWNER/REPO</em> is a placeholder until the repository is public. The second command opens the plugin's details, where you choose user, project or local scope.</div>
+      </div>
+      <div class="install">
+        <div class="install-head">
+          <span class="eyebrow">From a terminal, no interactive step</span>
+          <span class="pill pill--planned">not published yet</span>
+        </div>
+        <div class="cmd"><code>claude plugin marketplace add <em class="ph">OWNER/REPO</em></code><button class="copy" type="button">Copy</button></div>
+        <div class="cmd"><code>claude plugin install synchrobuilder@synchrobuilder</code><button class="copy" type="button">Copy</button></div>
+        <div class="install-foot">Installs to user scope unless you pass <code>--scope project</code> or <code>--scope local</code>. A terminal install loads the next time you start Claude Code, or after <code>/reload-plugins</code>.</div>
+      </div>
+      <div class="install">
+        <div class="install-head">
+          <span class="eyebrow">Machines without an SSH key for github.com</span>
+          <span class="pill pill--planned">not published yet</span>
+        </div>
+        <div class="cmd"><code>claude plugin marketplace add <em class="ph">https://github.com/OWNER/REPO.git</em></code><button class="copy" type="button">Copy</button></div>
+        <div class="install-foot">The <code>owner/repo</code> shorthand clones over SSH unless <code>CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1</code> is set, and SSH prompts are suppressed, so a missing key fails instead of asking. The full HTTPS URL uses your git credential helpers instead.</div>
+      </div>
+      <div class="measure">
+        <h3>What the names mean</h3>
+        <p>The part after <code>@</code> is the <code>name</code> field inside the marketplace's <code>marketplace.json</code>, not the repository name. Ours is planned as <code>synchrobuilder</code>, so the install id is <code>synchrobuilder@synchrobuilder</code>. The part before <code>@</code> is the plugin name, which also prefixes every command: <code>/synchrobuilder:audit</code>.</p>
+        <p>Adding a marketplace registers a catalog and installs nothing. Installing a named <code>plugin@marketplace</code> refreshes that catalog first on Claude Code 2.1.232 and later. Since 2.1.221 an in-session install activates in the current session; before that, the docs say nothing took effect until <code>/reload-plugins</code> or a restart.</p>
+        <p>Plugins run with your user privileges, as the Claude Code docs state. The plugin will be plain JavaScript with no build step and no dependencies, so what you read in the repository is what runs. Read the <a href="security.html">Security page</a> before installing on a shared machine.</p>
+        <h3>Testing from a checkout</h3>
+        <p>A clone of the repository can be loaded without any marketplace: <code>claude --plugin-dir ./plugins/synchrobuilder</code>. The manifest check is <code>claude plugin validate plugins/synchrobuilder</code>; in experiment E1 the proposed plugin manifest passed it, with and without <code>--strict</code>; the marketplace manifest passed without <code>--strict</code> and failed with it until it has a <code>description</code>. The validator reads the manifest only, not the hook or skill files.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="section" aria-labelledby="firstrun-title">
+    <div class="rail">
+      <h2 id="firstrun-title">First run</h2>
+      <p>Three commands, all planned. None of them exists yet.</p>
+    </div>
+    <div class="content">
+      <div class="install">
+        <div class="install-head">
+          <span class="eyebrow">In the project you want to keep portable</span>
+          <span class="pill pill--planned">planned</span>
+        </div>
+        <div class="cmd"><code>/synchrobuilder:init</code><button class="copy" type="button">Copy</button></div>
+        <div class="cmd"><code>/synchrobuilder:audit</code><button class="copy" type="button">Copy</button></div>
+        <div class="install-foot"><code>/init</code> belongs to Claude Code, so init needs the full form. The docs say the bare <code>/audit</code> also invokes the skill because no built-in owns that name; we have not tried it interactively.</div>
+      </div>
+      <div class="measure">
+        <p><strong>init</strong> inspects the project and writes <code>synchrobuilder.json</code>: required runtimes with exact versions, the package manager, services, environment variable names (never values), install, migrate, seed and start commands, and a health check. The format is on the <a href="manifest.html">Manifest page</a>. It never writes <code>extraKnownMarketplaces</code> or <code>enabledPlugins</code> into your settings by default; it can offer to, and shows the exact JSON first.</p>
+        <p><strong>audit</strong> scans for OS-specific assumptions and prints a report with a rule id, severity, location and fix for each finding, plus a JSON report and a score from 0 to 100. It exits non-zero only with <code>--strict</code>. The full list is on the <a href="commands.html">Commands page</a>.</p>
+      </div>
+      <div class="install">
+        <div class="install-head">
+          <span class="eyebrow">For a team</span>
+          <span class="pill pill--planned">planned</span>
+        </div>
+        <div class="cmd"><code>/synchrobuilder:iam <em class="ph">handle</em></code><button class="copy" type="button">Copy</button></div>
+        <div class="install-foot">Needed when the email in <code>git config user.email</code> is not listed in <code>.synchrobuilder/team.json</code>, or when two people share one git email on one machine. Handles match <code>^[a-z0-9][a-z0-9-]{0,31}$</code>.</div>
+      </div>
+      <div class="measure">
+        <p>Teammates are identified by a handle, not an account. Handles live in a committed file, <code>.synchrobuilder/team.json</code>, which maps each handle to the email addresses already visible in the repository's git history. <strong>init</strong> offers to seed it from <code>git log</code> authors, with confirmation. Commit it. A developer whose email is not in the file is not blocked: they get a provisional handle derived from the email's local part, and <code>/synchrobuilder:status</code> labels it "not in team.json" and suggests <code>iam</code>.</p>
+        <p><strong>iam</strong> writes the override to <code>~/.synchrobuilder/checkouts/&lt;key&gt;/identity.json</code>, never inside your repository or its <code>.git</code>, so it cannot be committed by accident. Your email never leaves the machine; only the handle is pushed. Identity is a claim, not authentication: anyone with push access to the remote can write any handle, which is why everything from another machine is treated as untrusted data. Details are on the <a href="how-it-works.html">How it works</a> and <a href="security.html">Security</a> pages.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="section" aria-labelledby="update-title">
+    <div class="rail">
+      <h2 id="update-title">Update and uninstall</h2>
+      <p>Updates are manual for third-party marketplaces. Uninstall leaves one directory for you to remove.</p>
+    </div>
+    <div class="content">
+      <div class="install">
+        <div class="install-head">
+          <span class="eyebrow">Update</span>
+          <span class="pill pill--planned">not published yet</span>
+        </div>
+        <div class="cmd"><code>/plugin update synchrobuilder@synchrobuilder</code><button class="copy" type="button">Copy</button></div>
+        <div class="cmd"><code>claude plugin update synchrobuilder@synchrobuilder</code><button class="copy" type="button">Copy</button></div>
+        <div class="install-foot">The Claude Code docs say auto-update is disabled by default for third-party marketplaces, so run this yourself. <code>/plugin marketplace update synchrobuilder</code> refreshes the catalog.</div>
+      </div>
+      <div class="measure">
+        <p>Claude Code keys plugin updates on the <code>version</code> field in <code>plugin.json</code>. Every Synchrobuilder release will bump that field and <code>CHANGELOG.md</code>; if the string does not change, existing users keep the cached copy. The planned <code>/synchrobuilder:status</code> shows the installed version next to the latest one it has seen.</p>
+      </div>
+      <div class="install">
+        <div class="install-head">
+          <span class="eyebrow">Uninstall</span>
+          <span class="pill pill--planned">not published yet</span>
+        </div>
+        <div class="cmd"><code>/plugin uninstall synchrobuilder@synchrobuilder</code><button class="copy" type="button">Copy</button></div>
+        <div class="cmd"><code>npx synchrobuilder clean</code><button class="copy" type="button">Copy</button></div>
+        <div class="install-foot">The first command opens Claude Code's plugin panel and leaves it open; press Esc to close it. Use <code>claude plugin uninstall synchrobuilder@synchrobuilder</code> for scripts.</div>
+      </div>
+      <div class="measure">
+        <p>The docs say that uninstalling from the last scope where the plugin is installed also deletes its data directory under <code>~/.claude/plugins/data</code>; the <code>/plugin</code> panel asks first, and the CLI deletes it unless you pass <code>--keep-data</code>. It does not touch <code>~/.synchrobuilder/</code>, where the planned plugin keeps its hidden bare repositories, per-checkout state and logs (override the location with <code>SYNCHROBUILDER_HOME</code>). <code>npx synchrobuilder clean</code>, planned for Phase 5, removes that directory. Removing the marketplace itself (<code>/plugin marketplace remove synchrobuilder</code>) also uninstalls every plugin you installed from it.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="section" aria-labelledby="trouble-title">
+    <div class="rail">
+      <h2 id="trouble-title">Troubleshooting</h2>
+      <p>Per OS. Only macOS has a recorded run so far.</p>
+    </div>
+    <div class="content">
+      <div class="measure">
+        <h3>macOS <span class="pill pill--ok">hooks verified on 2.1.218</span></h3>
+        <p>Exec-form Node hooks fire for session start, prompt submit, pre-edit, post-edit, stop and session end in a real headless session, and their context reaches Claude in the same turn (experiment E2). The only failure we have seen is the one above: <code>node</code> not on the <code>PATH</code> Claude Code inherited.</p>
+        <p>If you installed Node through a version manager, check that the shell that launches Claude Code has it on <code>PATH</code>; the experiment used <code>/usr/local/bin/node</code>. The <code>PATH</code> a Desktop-app session gives to hooks is listed in the plan as a risk and as unverified, not something we have measured. If it turns out to be minimal, the fix the plan records is a user-level <code>PATH</code> setting or a symlink into a standard location, which <code>doctor</code> would offer with consent. We will not add a shell wrapper that searches for Node, because that reintroduces the shell the design forbids.</p>
+        <h3>Windows <span class="pill pill--planned">nothing verified yet</span></h3>
+        <p>Native Windows without Git Bash runs Claude's shell commands through PowerShell and does not register the Bash tool at all. Synchrobuilder's hooks never use a shell: exec form on Windows requires a real executable, and <code>node.exe</code> is one, while the <code>.cmd</code> shims npm installs are not. Because no shell runs an exec-form hook, the docs' notes about Git Bash profiles and PowerShell placeholders, which describe shell-form hooks, do not apply to them.</p>
+        <p>File paths in hook input arrive with backslashes (<code>C:\project\src\index.ts</code>). The planned hook library normalizes separators before comparing, compares case-insensitively on Windows and macOS, and reads the home directory from <code>os.homedir()</code> rather than <code>HOME</code>. <code>~/.claude</code> in the docs means <code>%USERPROFILE%\.claude</code>.</p>
+        <p>If the machine has no SSH key for github.com, use the HTTPS form above, or set <code>CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1</code>. Whether a Windows machine without a key can add the <code>owner/repo</code> shorthand at all is listed as an open question in the research notes until we run it. Hook latency and the install flow on Windows are Phase 1 acceptance criteria, measured on a Windows CI runner before any number is promised. The detached background worker's survival on Windows is measured in Phase 5.</p>
+        <h3>Linux <span class="pill pill--planned">nothing verified yet</span></h3>
+        <p>The same <code>PATH</code> rule applies: <code>node</code> must be on the <code>PATH</code> of the process that launches Claude Code. The detached worker call is documented by Node for Linux, and the Claude Code docs describe exec-form hooks the same way on every platform, but we have not run either on Linux. The Phase 1 CI matrix runs ubuntu alongside macOS and Windows and records the results.</p>
+        <h3>Modes where the plugin does nothing</h3>
+        <ul>
+          <li><code>claude --bare</code> (or <code>CLAUDE_CODE_SIMPLE=1</code>) disables discovery of plugins, hooks and skills. Safe mode (<code>CLAUDE_CODE_SAFE_MODE=1</code>) does not load plugins or hooks either. In both, Synchrobuilder is silent by design.</li>
+          <li><code>DISABLE_TELEMETRY</code> or <code>CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC</code>, set to any value including <code>0</code>, makes the Monitor tool unavailable, so plugin monitors are skipped. Monitors are an optional accelerator that only makes teammate delivery sooner; the baseline is the hooks plus a detached worker, and it keeps working. Monitors also run only in interactive CLI sessions and not on Amazon Bedrock, Google Cloud's Agent Platform or Microsoft Foundry.</li>
+          <li>Plugin git operations have a 120-second timeout; <code>CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS</code> changes it. Offline, an install reads the cached catalog; the docs' fix for a background refresh that keeps failing is <code>CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE=1</code>.</li>
+        </ul>
+        <p class="muted">Questions before the plugin exists: <code>hello@example.invalid</code> (placeholder address). The repository will be at <a href="https://github.com/OWNER/REPO">github.com/OWNER/REPO</a> (placeholder).</p>
+      </div>
+    </div>
+  </section>
+</div>
