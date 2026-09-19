@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { normalizeRemoteUrl, parseGitConfig, resolveGitDirs, canonicalPath, remoteKey } from '../../plugins/synchrobuilder/lib/core/paths.mjs';
+import { normalizeRemoteUrl, parseGitConfig, resolveGitDirs, canonicalPath, remoteKey, realPath } from '../../plugins/synchrobuilder/lib/core/paths.mjs';
 
 test('remote URL spellings normalize to one key', () => {
   const forms = ['git@github.com:Acme/Repo.git', 'https://github.com/acme/repo', 'ssh://git@github.com/acme/repo.git', 'https://github.com/acme/repo.git/'];
@@ -19,7 +19,7 @@ test('git config parser reads remotes and user sections', () => {
 });
 
 test('resolveGitDirs follows a worktree gitdir file and commondir', () => {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sb-wt-')));
+  const root = realPath(fs.mkdtempSync(path.join(os.tmpdir(), 'sb-wt-')));
   const common = path.join(root, 'main', '.git');
   fs.mkdirSync(path.join(common, 'worktrees', 'wt1'), { recursive: true });
   fs.writeFileSync(path.join(common, 'config'), '[remote "origin"]\n\turl = https://example.com/r.git\n');
@@ -32,7 +32,7 @@ test('resolveGitDirs follows a worktree gitdir file and commondir', () => {
 });
 
 test('a symlinked checkout path resolves to one key, so hooks and the CLI share one state directory', () => {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sb-link-')));
+  const root = realPath(fs.mkdtempSync(path.join(os.tmpdir(), 'sb-link-')));
   const real = path.join(root, 'real');
   fs.mkdirSync(path.join(real, '.git'), { recursive: true });
   fs.writeFileSync(path.join(real, '.git', 'config'), '[remote "origin"]\n\turl = https://example.com/r.git\n');

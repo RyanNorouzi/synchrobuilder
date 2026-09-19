@@ -9,9 +9,10 @@ import { planFix, planAll, writeFix, loadFixers, listFixable } from '../../plugi
 import { joinOperands, rewriteLine, ensurePathImport, splitComment } from '../../plugins/synchrobuilder/lib/fix/path-concat.mjs';
 import { unifiedDiff } from '../../plugins/synchrobuilder/lib/fix/diff.mjs';
 import { auditProject } from '../../plugins/synchrobuilder/lib/audit/engine.mjs';
+import { realPath } from '../../plugins/synchrobuilder/lib/core/paths.mjs';
 
 function tempRepo(files) {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sb-fix-')));
+  const root = realPath(fs.mkdtempSync(path.join(os.tmpdir(), 'sb-fix-')));
   for (const [rel, content] of Object.entries(files)) {
     const abs = path.join(root, rel);
     fs.mkdirSync(path.dirname(abs), { recursive: true });

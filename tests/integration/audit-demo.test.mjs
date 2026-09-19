@@ -35,7 +35,11 @@ function caseInsensitive(dir) {
 // Plant the two bugs the repository cannot carry. Skipped where the file system cannot represent them.
 const planted = { 'case-duplicates': false, 'illegal-filenames': false };
 if (!caseInsensitive(demo)) {
-  fs.writeFileSync(path.join(demo, 'src', 'utils', 'Helper.js'), 'export const duplicate = true;\n');
+  // A pair that differs only by case. It must not be utils/helper.js: src/index.js deliberately imports
+  // './utils/Helper.js', and creating that exact spelling would make the import resolve and silence the
+  // import-casing plant. Use a file nothing imports.
+  fs.writeFileSync(path.join(demo, 'src', 'format.js'), 'export const lower = true;\n');
+  fs.writeFileSync(path.join(demo, 'src', 'Format.js'), 'export const upper = true;\n');
   planted['case-duplicates'] = true;
 }
 if (process.platform !== 'win32') {

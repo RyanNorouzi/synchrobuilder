@@ -4,7 +4,39 @@
   "description": "Multiplayer Claude Code for teams on any laptop. No server, safe by design.",
   "type": "module",
   "license": "MIT",
-  "bin": { "synchrobuilder": "bin/synchrobuilder.mjs" },
-  "engines": { "node": ">=20" },
-  "files": ["bin", "lib", "hooks", "skills", ".claude-plugin", "README.md"]
+  "bin": {
+    "synchrobuilder": "bin/synchrobuilder.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "hooks",
+    "skills",
+    ".claude-plugin",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RyanNorouzi/synchrobuilder.git",
+    "directory": "plugins/synchrobuilder"
+  },
+  "homepage": "https://github.com/RyanNorouzi/synchrobuilder#readme",
+  "bugs": {
+    "url": "https://github.com/RyanNorouzi/synchrobuilder/issues"
+  },
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "portability",
+    "cross-platform",
+    "windows",
+    "team",
+    "multiplayer",
+    "presence",
+    "git"
+  ],
+  "author": "Synchrobuilder contributors"
 }

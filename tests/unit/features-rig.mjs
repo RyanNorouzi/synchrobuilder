@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { locate } from '../../plugins/synchrobuilder/lib/core/paths.mjs';
+import { locate, realPath } from '../../plugins/synchrobuilder/lib/core/paths.mjs';
 
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const pluginRoot = path.join(repoRoot, 'plugins', 'synchrobuilder');
@@ -17,7 +17,7 @@ export function loadFixture(name = 'team') {
 
 /** Creates the rig. Sets process.env.SYNCHROBUILDER_HOME for in-process calls; the same value goes to spawned CLIs. */
 export async function makeRig({ snapshot = loadFixture(), identity = { handle: 'alice', device: 'aaaaaaaa', source: 'team.json' }, config, team, prefix = 'sb-feat-' } = {}) {
-  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix))); // realpath: on macOS tmpdir is a symlink and a child's process.cwd() resolves it
+  const home = realPath(fs.mkdtempSync(path.join(os.tmpdir(), prefix))); // realpath: on macOS tmpdir is a symlink and a child's process.cwd() resolves it
   process.env.SYNCHROBUILDER_HOME = home;
   const repo = path.join(home, 'repo');
   fs.mkdirSync(path.join(repo, '.git'), { recursive: true });
