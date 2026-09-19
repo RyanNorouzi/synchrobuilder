@@ -84,6 +84,32 @@ configuration.
    `refs/heads/synchrobuilder/v1/...`; and no Actions workflow run was triggered by any
    state push.
 
+7. **The marketplace install path works end to end on macOS.** Run on 2026-09-18 with
+   `CLAUDE_CONFIG_DIR` pointed at a scratch directory, so the developer's own
+   configuration was never touched (confirmed afterwards: no mention of the plugin in
+   `~/.claude/settings.json`):
+
+   ```
+   claude plugin marketplace add RyanNorouzi/synchrobuilder
+     SSH not configured, cloning via HTTPS: https://github.com/RyanNorouzi/synchrobuilder.git
+     ✔ Successfully added marketplace: synchrobuilder (declared in user settings)
+   claude plugin install synchrobuilder@synchrobuilder
+     ✔ Successfully installed plugin: synchrobuilder@synchrobuilder (scope: user)
+   ```
+
+   `claude plugin details synchrobuilder` then reported 15 skills, 6 hooks, 0 MCP
+   servers and about 443 always-on tokens. The cached copy contains only `bin`,
+   `hooks`, `lib`, `skills` and `package.json`: no `node_modules`, because the plugin
+   ships no lockfile and Claude Code therefore skips its dependency install, as
+   intended. The audit and the guard hook were then run from the cached copy and
+   behaved identically to the source tree. `claude plugin uninstall` removed it
+   cleanly.
+
+   Two things this run corrected: on Claude Code 2.1.218 the `owner/repo` shorthand
+   detects that SSH is not configured and falls back to HTTPS by itself, so
+   `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` is not needed for that case; and a private
+   repository installs fine for anyone whose git credentials can read it.
+
 ## Verified by hand
 
 - `synchrobuilder audit` on this repository reports 100/100 and `--strict` exits 0.
@@ -101,7 +127,6 @@ Nothing below is claimed anywhere as working.
 | Linux, anything | Same | Same CI matrix |
 | Hook latency on Windows | Defender and cold starts are unknown | The replay test prints timings on every runner |
 | The detached worker on Windows and Linux | Job Objects on Windows, process groups on Linux | A dedicated CI step, once a remote exists |
-| Installing through a marketplace | Would write to the developer's `~/.claude`; not done without being asked | Run the two install commands on a test machine |
 | The `ask` permission prompt | Interactive only | Manual pass before release |
 | The status line as Claude Code renders it | Interactive only | Manual pass before release |
 | Plugin monitors | Experimental and interactive only; Synchrobuilder treats them as an optional accelerator and does not ship one yet | Manual pass, if the feature is adopted |

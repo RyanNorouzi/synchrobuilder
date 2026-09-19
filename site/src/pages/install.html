@@ -64,7 +64,7 @@
           <span class="pill pill--planned">not published yet</span>
         </div>
         <div class="cmd"><code>claude plugin marketplace add <em class="ph">https://github.com/RyanNorouzi/synchrobuilder.git</em></code><button class="copy" type="button">Copy</button></div>
-        <div class="install-foot">The <code>owner/repo</code> shorthand clones over SSH unless <code>CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1</code> is set, and SSH prompts are suppressed, so a missing key fails instead of asking. The full HTTPS URL uses your git credential helpers instead.</div>
+        <div class="install-foot">On Claude Code 2.1.218 the <code>owner/repo</code> shorthand notices when SSH is not configured and clones over HTTPS by itself, which we verified on macOS. Use this full HTTPS URL if your machine has an SSH key that cannot read the repository, or set <code>CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1</code>. Either way the clone uses your git credential helpers.</div>
       </div>
       <div class="measure">
         <h3>What the names mean</h3>
@@ -163,7 +163,7 @@
         <h3>Windows <span class="pill pill--planned">nothing verified yet</span></h3>
         <p>Native Windows without Git Bash runs Claude's shell commands through PowerShell and does not register the Bash tool at all. Synchrobuilder's hooks never use a shell: exec form on Windows requires a real executable, and <code>node.exe</code> is one, while the <code>.cmd</code> shims npm installs are not. Because no shell runs an exec-form hook, the docs' notes about Git Bash profiles and PowerShell placeholders, which describe shell-form hooks, do not apply to them.</p>
         <p>File paths in hook input arrive with backslashes (<code>C:\project\src\index.ts</code>). The planned hook library normalizes separators before comparing, compares case-insensitively on Windows and macOS, and reads the home directory from <code>os.homedir()</code> rather than <code>HOME</code>. <code>~/.claude</code> in the docs means <code>%USERPROFILE%\.claude</code>.</p>
-        <p>If the machine has no SSH key for github.com, use the HTTPS form above, or set <code>CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1</code>. Whether a Windows machine without a key can add the <code>owner/repo</code> shorthand at all is listed as an open question in the research notes until we run it. Hook latency and the install flow on Windows are Phase 1 acceptance criteria, measured on a Windows CI runner before any number is promised. The detached background worker's survival on Windows is measured in Phase 5.</p>
+        <p>On macOS a machine with no SSH key installs fine: the shorthand falls back to HTTPS on its own, which we ran and recorded. Whether Windows behaves the same is still untested, so the HTTPS form above is the safe one there. Hook latency, the install flow and the detached background worker on Windows are all measured on the Windows CI runner before any number is promised here.</p>
         <h3>Linux <span class="pill pill--planned">nothing verified yet</span></h3>
         <p>The same <code>PATH</code> rule applies: <code>node</code> must be on the <code>PATH</code> of the process that launches Claude Code. The detached worker call is documented by Node for Linux, and the Claude Code docs describe exec-form hooks the same way on every platform, but we have not run either on Linux. The Phase 1 CI matrix runs ubuntu alongside macOS and Windows and records the results.</p>
         <h3>Modes where the plugin does nothing</h3>
