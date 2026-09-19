@@ -54,7 +54,7 @@ async function makeTransport({ remoteUrl, remoteDir, handle, device, mode, lastK
 }
 
 /** One sync cycle for every checkout registered against this remote. Never throws. */
-export async function tick({ remoteDir, now = Date.now(), state = {} }) {
+export async function tick({ remoteDir, now = Date.now(), state = {}, mayPublish = true }) {
   const rp = paths.remote(remoteDir);
   const registry = readRegistry(remoteDir);
   const result = { published: false, pulled: false, writers: 0, mode: 'local', checkouts: registry.length, errorClass: null };
@@ -112,7 +112,8 @@ export async function tick({ remoteDir, now = Date.now(), state = {} }) {
 
   const changed = state.lastPublishedHash !== state.treeHash;
   const due = !state.lastPublishAt || now - state.lastPublishAt >= PUBLISH_EVERY_MS;
-  if (changed || due) {
+  if (!mayPublish) result.skippedPublish = 'another worker holds the lock';
+  if (mayPublish && (changed || due)) {
     const pub = await transport.publish(tree);
     result.published = !!pub.ok;
     if (pub.ok) { state.lastPublishedHash = state.treeHash; state.lastPublishAt = now; }
@@ -162,6 +163,9 @@ export async function runWorker({ remoteDir, once = false, now = () => Date.now(
   const rp = paths.remote(remoteDir);
   fs.mkdirSync(remoteDir, { recursive: true });
   if (!once && !acquireLock(rp.lock)) return { ok: false, reason: 'another worker holds the lock' };
+  // A one-off tick does not take the lock, so it must not publish while a live worker owns this writer's ref:
+  // both would build a tree from their own read of the journal and the later push would win, possibly with older state.
+  const mayPublish = once ? !lockHeldByLive(rp.lock) : true;
   const state = {};
   let failures = 0;
   let idleTicks = 0;
@@ -169,7 +173,7 @@ export async function runWorker({ remoteDir, once = false, now = () => Date.now(
   try {
     for (;;) {
       const t = now();
-      last = await tick({ remoteDir, now: t, state });
+      last = await tick({ remoteDir, now: t, state, mayPublish });
       failures = last.errorClass ? failures + 1 : 0;
       if (once) return { ok: true, ...last };
       heartbeatLock(rp.lock);

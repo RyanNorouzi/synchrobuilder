@@ -27,7 +27,9 @@ function sh(program, args, { cwd, env = {}, input } = {}) {
 }
 const git = (cwd, ...args) => sh('git', args, { cwd });
 const run = (d, ...args) => sh(process.execPath, [cli, ...args], { cwd: d.clone, env: { SYNCHROBUILDER_HOME: d.home } });
-const hookRun = (d, verb, input) => sh(process.execPath, [hook, verb], { cwd: d.clone, env: { SYNCHROBUILDER_HOME: d.home }, input: JSON.stringify({ session_id: `sid-${d.name}`, cwd: d.clone, ...input }) });
+// The test drives every sync itself with "worker --once", so the hook must not also start a background worker:
+// two publishers for one writer ref race, and the loser's older tree can win the push.
+const hookRun = (d, verb, input) => sh(process.execPath, [hook, verb], { cwd: d.clone, env: { SYNCHROBUILDER_HOME: d.home, SYNCHROBUILDER_NO_WORKER: '1' }, input: JSON.stringify({ session_id: `sid-${d.name}`, cwd: d.clone, ...input }) });
 const parse = (s) => { const t = (s || '').trim(); return t.startsWith('{') ? JSON.parse(t) : null; };
 
 let paths;

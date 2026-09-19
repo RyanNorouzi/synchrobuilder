@@ -130,8 +130,6 @@ Nothing below is claimed anywhere as working.
 
 | What | Why not | How it gets verified |
 | :-- | :-- | :-- |
-| Windows, anything | No Windows machine here | The CI matrix (`ubuntu`, `macos`, `windows`, Node 20 and 24, plus a CRLF checkout job) runs on the first push to GitHub |
-| Linux, anything | Same | Same CI matrix |
 | Hook latency on Windows | Defender and cold starts are unknown | The replay test prints timings on every runner |
 | The detached worker on Windows and Linux | Job Objects on Windows, process groups on Linux | A dedicated CI step, once a remote exists |
 | The `ask` permission prompt | Interactive only | Manual pass before release |

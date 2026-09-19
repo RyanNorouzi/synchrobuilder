@@ -45,6 +45,9 @@ enforces author rules (`.synchrobuilder/team.json`, `transport.realEmail`).
 
 ## What stays local, and where
 
+Set `SYNCHROBUILDER_NO_WORKER=1` to stop the background sync from starting at all. The
+portability features keep working; nothing is published and nothing is fetched.
+
 `~/.synchrobuilder/` (or `SYNCHROBUILDER_HOME`) holds: the hidden bare git
 repository per remote, the local snapshot of teammates' state, your own
 journal of events (edited paths, claims, messages you sent), session
