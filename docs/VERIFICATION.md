@@ -110,6 +110,13 @@ configuration.
    `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` is not needed for that case; and a private
    repository installs fine for anyone whose git credentials can read it.
 
+8. **The one-line install works.** `npx synchrobuilder@latest install` (run from the
+   local checkout, against a scratch `CLAUDE_CONFIG_DIR`) printed its plan, added the
+   marketplace, installed the plugin, and reported the next steps. Running it a second
+   time reported "already added" and "already installed" and changed nothing;
+   `--uninstall` removed both; and with stdin not a terminal and no `--yes` it refused
+   to act and said why instead of hanging.
+
 ## Verified by hand
 
 - `synchrobuilder audit` on this repository reports 100/100 and `--strict` exits 0.

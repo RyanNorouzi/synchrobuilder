@@ -11,6 +11,17 @@ paragraph. Keys: Slash, Short form, CLI, Pillar, Phase, Status, Summary.
 repository on macOS. See `VERIFICATION.md` for what has and has not been
 verified, in particular that Windows and Linux runs are pending CI.
 
+## install
+- Slash: none (run it before the plugin exists)
+- Short form: none
+- CLI: npx synchrobuilder@latest install [--scope user|project|local] [--plan] [--yes] [--uninstall]
+- Pillar: Both
+- Phase: 1
+- Status: available
+- Summary: Register Synchrobuilder with Claude Code on this machine in one command.
+
+Adds the marketplace and installs the plugin, after printing the exact commands it will run and asking. `--plan` shows the plan and stops, `--yes` skips the question, and `--uninstall` reverses it. Running it twice changes nothing the second time. It writes only to your Claude Code settings and plugin cache.
+
 ## audit
 - Slash: /synchrobuilder:audit [path] [--strict]
 - Short form: /audit

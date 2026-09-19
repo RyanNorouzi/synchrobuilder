@@ -4,6 +4,7 @@ import { parseArgs } from '../lib/core/args.mjs';
 import { pluginVersion } from '../lib/core/version.mjs';
 
 const COMMANDS = {
+  install: { module: 'install.mjs', summary: 'Register Synchrobuilder with Claude Code on this machine', usage: 'install [--scope user|project|local] [--plan] [--yes] [--uninstall]' },
   audit: { module: 'audit.mjs', summary: 'Scan the project for OS-specific assumptions', usage: 'audit [path] [--json] [--strict] [--only rule-ids] [--report file]' },
   fix: { module: 'fix.mjs', summary: 'Propose and apply fixes for audit findings', usage: 'fix [path] [--dry-run] [--yes] [--only rule-ids-or-paths] [--json]' },
   mute: { module: 'mute.mjs', summary: 'Silence the guard hook for this checkout', usage: 'mute [on|off|status]' },
