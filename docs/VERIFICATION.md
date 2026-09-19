@@ -119,9 +119,12 @@ configuration.
    `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` is not needed for that case; and a private
    repository installs fine for anyone whose git credentials can read it.
 
-8. **The one-line install works.** `npx synchrobuilder@latest install` (run from the
-   local checkout, against a scratch `CLAUDE_CONFIG_DIR`) printed its plan, added the
-   marketplace, installed the plugin, and reported the next steps. Running it a second
+8. **The one-line install works from the published package.** `synchrobuilder@0.1.0`
+   went live on npm on 2026-09-19. From an empty directory, with a scratch npm cache and
+   a scratch `CLAUDE_CONFIG_DIR` so nothing local could help it,
+   `npx --yes synchrobuilder@latest install --yes` downloaded the package, added the
+   marketplace, installed the plugin and printed the next steps. `--plan` showed the
+   plan and stopped. Running it a second
    time reported "already added" and "already installed" and changed nothing;
    `--uninstall` removed both; and with stdin not a terminal and no `--yes` it refused
    to act and said why instead of hanging.
