@@ -1,5 +1,7 @@
 # Synchrobuilder
 
+[![ci](https://github.com/RyanNorouzi/synchrobuilder/actions/workflows/ci.yml/badge.svg)](https://github.com/RyanNorouzi/synchrobuilder/actions/workflows/ci.yml)
+
 Multiplayer Claude Code for teams on any laptop. No server, safe by design.
 
 Synchrobuilder is an open-source Claude Code plugin with two pillars that ship
@@ -20,7 +22,14 @@ Pre-release. See [PLAN.md](PLAN.md) for the phases and
 unless a test in this repository proves it; see `docs/VERIFICATION.md` once it
 exists.
 
-## Install (when published)
+## Install
+
+```
+npx synchrobuilder@latest install
+```
+
+It shows you the two Claude Code commands it will run, asks, then runs them.
+`--uninstall` reverses it. To do it by hand inside Claude Code:
 
 ```
 /plugin marketplace add RyanNorouzi/synchrobuilder

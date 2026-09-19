@@ -22,9 +22,18 @@ node scripts/test.mjs
 node plugins/synchrobuilder/bin/synchrobuilder.mjs audit --strict
 ```
 
-## Verified by the test suite
+## Verified by the test suite on three operating systems
 
-223 tests, 222 passing and 1 skipped, on macOS. The skip is `case-duplicates` on a
+223 tests, 222 passing and 1 skipped. The CI matrix runs them on ubuntu, macos and
+windows, on Node 20 and Node 24, plus a Windows job that checks the repository out with
+CRLF line endings. Every job passed on 2026-09-18
+(`https://github.com/RyanNorouzi/synchrobuilder/actions`). Two real bugs were found by
+that first run and fixed: an integration test that planted a file which silenced the
+very rule it was testing on case-sensitive file systems, and Windows 8.3 short paths
+(`RUNNER~1` against `runneradmin`) making tests disagree with the product's own path
+canonicalization.
+
+The counts below were measured on macOS. The skip is `case-duplicates` on a
 case-insensitive file system, which cannot hold two names differing only by case; the
 rule's logic is covered by a synthetic index in the same file, and the disk-level case
 runs on the Linux CI job.
@@ -130,8 +139,7 @@ Nothing below is claimed anywhere as working.
 
 | What | Why not | How it gets verified |
 | :-- | :-- | :-- |
-| Hook latency on Windows | Defender and cold starts are unknown | The replay test prints timings on every runner |
-| The detached worker on Windows and Linux | Job Objects on Windows, process groups on Linux | A dedicated CI step, once a remote exists |
+| The detached background worker outliving a session on Windows and Linux | The suite runs with the worker disabled so tests drive sync themselves; only the macOS case has been observed directly | A CI step that starts a session, ends it, and checks the worker finished its last tick |
 | The `ask` permission prompt | Interactive only | Manual pass before release |
 | The status line as Claude Code renders it | Interactive only | Manual pass before release |
 | Plugin monitors | Experimental and interactive only; Synchrobuilder treats them as an optional accelerator and does not ship one yet | Manual pass, if the feature is adopted |
