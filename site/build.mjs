@@ -125,6 +125,9 @@ if (!single) {
   fs.writeFileSync(path.join(outDir, 'styles.css'), css);
   fs.writeFileSync(path.join(outDir, 'site.js'), js);
   for (const f of fs.readdirSync(path.join(src, 'fonts'))) fs.copyFileSync(path.join(src, 'fonts', f), path.join(outDir, 'fonts', f));
+  // GitHub Pages reads CNAME from the published root to serve the custom domain.
+  const cname = path.join(src, 'CNAME');
+  if (fs.existsSync(cname)) fs.copyFileSync(cname, path.join(outDir, 'CNAME'));
   for (const page of pages) {
     const doc = `<!doctype html>
 <html lang="en">

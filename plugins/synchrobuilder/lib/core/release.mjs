@@ -6,7 +6,7 @@ export const REPO_OWNER = 'RyanNorouzi';
 export const REPO_NAME = 'synchrobuilder';
 export const REPO_SLUG = `${REPO_OWNER}/${REPO_NAME}`;
 export const REPO_URL = `https://github.com/${REPO_SLUG}`;
-export const WEBSITE = `https://${REPO_OWNER.toLowerCase()}.github.io/${REPO_NAME}/`;
+export const WEBSITE = 'https://synchrobuilder.com/';
 
 /**
  * What to hand `claude plugin marketplace add`. The owner/repo shorthand is shortest and, since Claude Code 2.1.218,

@@ -9,7 +9,7 @@ Code uses to detect updates, so every release bumps it.
 
 First public release. Published to npm as `synchrobuilder`, installable with
 `npx synchrobuilder@latest install` or the two Claude Code plugin commands.
-Website: https://ryannorouzi.github.io/synchrobuilder/
+Website: https://synchrobuilder.com/
 
 
 ### Added
