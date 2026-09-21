@@ -170,7 +170,8 @@ if (!single) {
   if (fs.existsSync(cname)) fs.copyFileSync(cname, path.join(outDir, 'CNAME'));
   for (const page of pages) {
     const url = `${SITE.origin}/${page.out === 'index.html' ? '' : page.out}`;
-    const fullTitle = page.id === 'home' ? page.title : `${page.title} · ${SITE.name}`;
+    // A page may already carry the brand in its own title; never append it twice.
+    const fullTitle = page.id === 'home' || page.title.includes(SITE.name) ? page.title : `${page.title} · ${SITE.name}`;
     const doc = `<!doctype html>
 <html lang="en">
 <head>

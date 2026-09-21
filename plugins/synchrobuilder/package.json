@@ -30,13 +30,19 @@
   "keywords": [
     "claude-code",
     "claude-code-plugin",
+    "claude-code-hooks",
     "portability",
     "cross-platform",
+    "compatibility",
     "windows",
-    "team",
-    "multiplayer",
-    "presence",
-    "git"
+    "linux",
+    "macos",
+    "case-sensitive-paths",
+    "line-endings",
+    "npm-scripts",
+    "github-actions",
+    "agent-coordination",
+    "multiplayer"
   ],
   "author": "Synchrobuilder contributors"
 }
