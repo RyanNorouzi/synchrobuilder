@@ -15,6 +15,15 @@ for (const f of fs.readdirSync(dist).filter((n) => n.endsWith('.html') && n !== 
   need(/<main id="main">/, 'missing <main id="main">');
   need(/<h1[\s>]/, 'missing <h1>');
   need(/<nav class="site-nav" aria-label/, 'missing labelled nav');
+  need(/<link rel="canonical" href="https:\/\/synchrobuilder\.com/, 'missing canonical link');
+  need(/<meta property="og:title"/, 'missing Open Graph title');
+  need(/<meta property="og:image" content="[^"]+og-image\.png"/, 'missing Open Graph image');
+  need(/<meta name="twitter:card" content="summary_large_image"/, 'missing Twitter card');
+  need(/<script type="application\/ld\+json">\{/, 'missing structured data');
+  const desc = (html.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';
+  if (desc.length < 80 || desc.length > 170) problems.push(`${f}: description is ${desc.length} characters (want 80-170)`);
+  const title = (html.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
+  if (title.length > 62) problems.push(`${f}: title is ${title.length} characters (want 62 or fewer)`);
   need(/class="skip-link"/, 'missing skip link');
   if ((html.match(/<h1[\s>]/g) || []).length > 1) problems.push(`${f}: more than one <h1>`);
   for (const m of html.matchAll(/<img\b[^>]*>/g)) if (!/\balt=/.test(m[0])) problems.push(`${f}: <img> without alt`);
@@ -23,11 +32,20 @@ for (const f of fs.readdirSync(dist).filter((n) => n.endsWith('.html') && n !== 
   for (const m of html.matchAll(/<a\b[^>]*href="([^"]*)"[^>]*>/g)) { const href = m[1]; if (href.endsWith('.html') && !fs.existsSync(path.join(dist, href.split('#')[0]))) problems.push(`${f}: broken link ${href}`); }
   for (const m of html.matchAll(/<a\b[^>]*>(\s*)<\/a>/g)) problems.push(`${f}: empty link text`);
   for (const re of banned) if (re.test(html)) problems.push(`${f}: banned pattern ${re}`);
-  const allowed = /^(https:\/\/code\.claude\.com\/|https:\/\/github\.com\/RyanNorouzi\/synchrobuilder|https:\/\/github\.com\/worklab-studio\/claude-code-relay|https:\/\/synchrobuilder\.dev\/schema\/|https:\/\/fonts\.googleapis\.com\/|http:\/\/localhost)/;
+  const allowed = /^(https:\/\/code\.claude\.com\/|https:\/\/github\.com\/RyanNorouzi\/synchrobuilder|https:\/\/github\.com\/worklab-studio\/claude-code-relay|https:\/\/synchrobuilder\.dev\/schema\/|https:\/\/synchrobuilder\.com|https:\/\/www\.npmjs\.com\/package\/synchrobuilder|https:\/\/schema\.org|https:\/\/opensource\.org\/licenses\/|https:\/\/fonts\.googleapis\.com\/|http:\/\/localhost)/;
   for (const m of html.matchAll(/https?:\/\/[^"'\s<)]+/g)) if (!allowed.test(m[0])) problems.push(`${f}: external URL not on the allowlist ${m[0]}`);
   // heading order: no jump larger than one level
   let last = 1;
   for (const m of html.matchAll(/<h([1-6])[\s>]/g)) { const n = Number(m[1]); if (n > last + 1) problems.push(`${f}: heading jumps from h${last} to h${n}`); last = n; }
 }
+for (const required of ['robots.txt', 'sitemap.xml', 'og-image.png', 'favicon.svg', 'apple-touch-icon.png', 'CNAME']) {
+  if (!fs.existsSync(path.join(dist, required))) problems.push(`missing ${required}`);
+}
+const sitemap = fs.existsSync(path.join(dist, 'sitemap.xml')) ? fs.readFileSync(path.join(dist, 'sitemap.xml'), 'utf8') : '';
+for (const f of fs.readdirSync(dist).filter((n) => n.endsWith('.html') && n !== 'preview.html')) {
+  const loc = f === 'index.html' ? 'https://synchrobuilder.com/' : `https://synchrobuilder.com/${f}`;
+  if (!sitemap.includes(loc)) problems.push(`sitemap.xml does not list ${loc}`);
+}
+
 if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
 console.log('site check passed');
