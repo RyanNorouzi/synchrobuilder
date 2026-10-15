@@ -159,10 +159,10 @@ test('status: identity, transport, teammates with staleness labels, board summar
   assert.ok(r.out.includes('You: alice on device aaaaaaaa (team.json)'), r.out);
   assert.ok(r.out.includes('Sync: mode custom, last ok') && r.out.includes('worker pid 4242'), r.out);
   assert.ok(/Snapshot: fetched 2 min ago \(fresh\), 4 writers/.test(r.out), r.out);
-  assert.ok(/bob\s+feat\/api\s+src\/api\s+4m fresh\s+yes\s+Add pagination to \/users alertoo/.test(r.out) || r.out.includes('bob'), r.out);
+  assert.ok(/bob\s+remote\s+feat\/api\s+src\/api\s+4m fresh\s+yes\s+Add pagination to \/users alertoo/.test(r.out) || r.out.includes('bob'), r.out);
   assert.ok(!r.out.includes('\u001b') && r.out.includes('Add pagination to /users <script>alert(1)</script>'), 'task summary is printable ASCII only: the ESC sequence is stripped');
-  assert.ok(/carol\s+main\s+-\s+2h stale/.test(r.out), r.out);
-  assert.ok(/dave\s+feat\/x\s+src\/api\s+2m fresh\s+email-mismatch/.test(r.out), r.out);
+  assert.ok(/carol\s+remote\s+main\s+-\s+2h stale/.test(r.out), r.out);
+  assert.ok(/dave\s+remote\s+feat\/x\s+src\/api\s+2m fresh\s+email-mismatch/.test(r.out), r.out);
   assert.ok(!/^\s*alice\s/m.test(r.out.split('Teammates')[1]), 'self is not listed as a teammate');
   assert.ok(r.out.includes('Board: 1 open, 1 in progress, 1 blocked, 0 done (next: write-docs-5e6f Write docs)'), r.out);
   assert.ok(r.out.includes('4 people were active'), 'seats notice for four active handles');
@@ -171,6 +171,8 @@ test('status: identity, transport, teammates with staleness labels, board summar
   assert.equal(j.identity.handle, 'alice');
   assert.equal(j.snapshot.tier, 'fresh');
   assert.deepEqual(j.teammates.map((x) => x.handle), ['dave', 'bob', 'carol']);
+  assert.deepEqual(j.teammates.map((x) => x.where), ['remote', 'remote', 'remote'], 'fixture writers are all on other machines');
+  assert.equal(j.agentsHere, 0, 'no other agent shares this machine in the fixture');
   assert.equal(j.transport.workerPid, 4242);
   const bare = await makeRig({ snapshot: null, identity: null });
   const b = spawnSync(process.execPath, [bin, 'status'], { encoding: 'utf8', env: bare.env(), cwd: bare.repo, timeout: 15000 });

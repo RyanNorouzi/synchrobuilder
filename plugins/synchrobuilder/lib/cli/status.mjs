@@ -9,6 +9,7 @@ import { readJournalTail } from '../features/journal-write.mjs';
 import { ownClaims, describeTarget } from '../features/claims.mjs';
 import { foldBoard, nextTask, summarizeBoard } from '../features/board-fold.mjs';
 import { seatsNotice } from '../features/seats.mjs';
+import { withSiblings } from '../features/siblings.mjs';
 
 function table(rows, header) {
   const widths = header.map((h, i) => Math.max(h.length, ...rows.map((r) => String(r[i]).length)));
@@ -30,7 +31,11 @@ export async function run({ flags, cwd, stdout, stderr }) {
   if (!c) { stderr.write('Not inside a git repository.\n'); return 1; }
   const now = c.now;
   const status = c.statusFile ? readJson(c.statusFile, null) : null;
-  const rows = activeWriters(c.snapshot, now, c.identity);
+  // Other agents on this machine are read straight off the disk, so status is current for them even when
+  // the last fetch is old. That is the question an agent actually asks: who else is in this repo right now.
+  const snapshot = withSiblings(c.snapshot, c.loc, c.identity, now);
+  const rows = activeWriters(snapshot, now, c.identity);
+  const here = rows.filter((r) => r.writer && r.writer.local);
   const events = readJournalTail(c.checkoutDir, { maxBytes: 1024 * 1024 });
   const claims = ownClaims(events, now);
   const tasks = foldBoard(c.snapshot, events, now);
@@ -39,7 +44,9 @@ export async function run({ flags, cwd, stdout, stderr }) {
     const out = {
       repo: c.loc.repoName, identity: c.identity, remoteUrl: c.loc.remoteUrl ? 'configured' : null,
       snapshot: c.snapshot ? { fetchedAt: c.snapshot.fetchedAt, ageMs: c.snapshot.ageMs, tier: c.snapshot.tier, writers: c.snapshot.writers.length } : null,
-      transport: status, teammates: rows.map((r) => ({ handle: r.handle, device: r.device, branch: r.branch, area: r.area, task: terminalSafe(r.task, 140), ageMs: r.ageMs, tier: r.tier, verified: r.verified, claims: r.writer.claims.length })),
+      transport: status,
+      teammates: rows.map((r) => ({ handle: r.handle, device: r.device, seat: r.writer.seat || null, where: r.writer.local ? 'here' : 'remote', live: r.writer.live !== false, branch: r.branch, area: r.area, task: terminalSafe(r.task, 140), ageMs: r.ageMs, tier: r.tier, verified: r.verified, claims: r.writer.claims.length })),
+      agentsHere: here.length,
       myClaims: claims, board: { counts: summarizeBoard(tasks), next: nextTask(tasks), tasks: tasks.map((t) => ({ ...t, title: terminalSafe(t.title, 100) })) }, seatsNotice: notice,
     };
     stdout.write(JSON.stringify(out, null, 2) + '\n');
@@ -49,10 +56,19 @@ export async function run({ flags, cwd, stdout, stderr }) {
   lines.push(c.identity ? `You: ${c.identity.handle} on device ${c.identity.device} (${c.identity.source})` : 'You: identity not resolved yet (start a session, or run /synchrobuilder:iam <handle>)');
   lines.push(transportLine(status, c.snapshot));
   if (c.snapshot) lines.push(`Snapshot: fetched ${fmtAgo(c.snapshot.ageMs)} (${c.snapshot.tier}), ${c.snapshot.writers.length} writer${c.snapshot.writers.length === 1 ? '' : 's'}`);
+  if (here.length) {
+    const holding = here.reduce((n, r) => n + (r.writer.claims || []).length, 0);
+    lines.push(`On this machine: ${here.length} other agent${here.length === 1 ? '' : 's'} in this repo, holding ${holding} file${holding === 1 ? '' : 's'}.`);
+  }
   lines.push('');
   if (rows.length) {
     lines.push(`Teammates (${rows.length} seen in the last 24 h):`);
-    lines.push(table(rows.map((r) => [r.handle, r.branch || '-', r.area || '-', `${fmtShortAge(r.ageMs)} ${r.tier}`, r.verified === 'yes' ? 'yes' : r.verified, terminalSafe(r.task) || '-']), ['HANDLE', 'BRANCH', 'AREA', 'SEEN', 'VERIFIED', 'TASK']));
+    lines.push(table(rows.map((r) => [
+      r.handle,
+      r.writer.local ? (r.writer.live === false ? 'here (idle)' : 'here') : 'remote',
+      r.branch || '-', r.area || '-', `${fmtShortAge(r.ageMs)} ${r.tier}`,
+      r.verified === 'yes' ? 'yes' : r.verified, terminalSafe(r.task) || '-',
+    ]), ['HANDLE', 'WHERE', 'BRANCH', 'AREA', 'SEEN', 'VERIFIED', 'TASK']));
   } else lines.push('Teammates: none seen in the last 24 h.');
   lines.push('');
   lines.push(claims.length ? `My claims: ${claims.map((cl) => `${describeTarget(cl)} (${fmtAgo(now - Date.parse(cl.at))})`).join(', ')}` : 'My claims: none.');
