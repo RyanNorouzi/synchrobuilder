@@ -14,9 +14,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { pidAlive } from '../../plugins/synchrobuilder/lib/core/proc.mjs';
 
-const here = path.dirname(new URL(import.meta.url).pathname);
+// fileURLToPath, not new URL().pathname: on Windows the latter yields "/C:/..." with a leading slash, which
+// is not a path any fs call accepts, so the READY check below would silently skip this whole file.
+const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '..', '..');
 const cli = path.join(repo, 'plugins', 'synchrobuilder', 'bin', 'synchrobuilder.mjs');
 const hook = path.join(repo, 'plugins', 'synchrobuilder', 'hooks', 'run.mjs');
