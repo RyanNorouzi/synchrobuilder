@@ -3,7 +3,7 @@
 
 export const SCHEMA_VERSION = 1;
 export const LIMITS = Object.freeze({
-  handle: 32, device: 8, branch: 128, path: 512, pathSegments: 64, task: 140, message: 400, messageLines: 6, lineChars: 200,
+  handle: 32, device: 8, seat: 16, branch: 128, path: 512, pathSegments: 64, task: 140, message: 400, messageLines: 6, lineChars: 200,
   title: 100, taskId: 40, symbol: 80, deps: 10, claimsPerWriter: 50, claimTtlMs: 4 * 3600 * 1000, messageTtlMs: 72 * 3600 * 1000,
   digestChars: 6000, inboxChars: 2000, collisionChars: 600, alertChars: 1500, blobBytes: 64 * 1024, filesPerWriter: 20, bytesPerSync: 1024 * 1024,
 });
@@ -11,6 +11,8 @@ export const LIMITS = Object.freeze({
 export const RE = Object.freeze({
   handle: /^[a-z0-9][a-z0-9-]{0,31}$/,
   device: /^[a-f0-9]{8}$/,
+  // A seat is one working tree. workspaceKey() produces sixteen hex characters of a one-way path hash.
+  seat: /^[a-f0-9]{16}$/,
   branch: /^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/,
   taskId: /^[a-z0-9][a-z0-9-]{0,39}$/,
   symbol: /^[A-Za-z_$][A-Za-z0-9_$.:#-]{0,79}$/,
@@ -24,6 +26,7 @@ const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
 
 export function isHandle(s) { return typeof s === 'string' && RE.handle.test(s); }
 export function isDevice(s) { return typeof s === 'string' && RE.device.test(s); }
+export function isSeat(s) { return typeof s === 'string' && RE.seat.test(s); }
 export function isTaskId(s) { return typeof s === 'string' && RE.taskId.test(s); }
 export function isSymbol(s) { return typeof s === 'string' && RE.symbol.test(s); }
 
@@ -78,7 +81,7 @@ function str(v, max) { return typeof v === 'string' && v.length <= max ? v : nul
 export function validPresence(v, receiptMs = Date.now()) {
   if (!plainObject(v) || !isHandle(v.handle) || !isDevice(v.device)) return null;
   return {
-    handle: v.handle, device: v.device,
+    handle: v.handle, device: v.device, seat: isSeat(v.seat) ? v.seat : null,
     branch: validBranch(v.branch) || null,
     task: str(v.task, LIMITS.task * 4) || '',
     area: validRepoPath(v.area || '') || null,
@@ -153,5 +156,6 @@ export function validContracts(v, receiptMs = Date.now()) {
 
 export function validManifest(v) {
   if (!plainObject(v) || !isHandle(v.handle) || !isDevice(v.device)) return null;
-  return { handle: v.handle, device: v.device, schemaVersion: Number.isInteger(v.schemaVersion) ? v.schemaVersion : 0 };
+  // seat is absent on anything published before seats existed, and null is a legitimate value there.
+  return { handle: v.handle, device: v.device, seat: isSeat(v.seat) ? v.seat : null, schemaVersion: Number.isInteger(v.schemaVersion) ? v.schemaVersion : 0 };
 }

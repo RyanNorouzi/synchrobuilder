@@ -28,52 +28,75 @@ export class LocalTransport extends Transport {
   status() { return { mode: 'local', lastError: null, lastErrorClass: null, lastOkAt: new Date().toISOString(), nextAttemptAt: null }; }
 }
 
-/** Checkouts registered against this remote, written by the session-start hook and pruned here. */
+/** Checkouts registered against this remote, written by the session-start hook and pruned here.
+ *
+ *  One file per seat rather than one shared array. The array was a read-modify-write with no lock, so two
+ *  worktrees starting a session at the same moment could each read the same list and write back a copy
+ *  missing the other. A directory of small files has no such window. The legacy `checkouts.json` is still
+ *  read so an upgrade does not lose registrations written by an older version. */
 export function readRegistry(remoteDir) {
-  const raw = readJson(path.join(remoteDir, 'checkouts.json'), null);
-  const list = raw && Array.isArray(raw.checkouts) ? raw.checkouts : [];
-  return list.filter((c) => c && typeof c.checkoutDir === 'string' && typeof c.workTree === 'string');
+  const ok = (c) => c && typeof c.checkoutDir === 'string' && typeof c.workTree === 'string';
+  const byDir = new Map();
+  const legacy = readJson(path.join(remoteDir, 'checkouts.json'), null);
+  for (const c of (legacy && Array.isArray(legacy.checkouts) ? legacy.checkouts : [])) {
+    if (ok(c)) byDir.set(c.checkoutDir, c);
+  }
+  const dir = path.join(remoteDir, 'checkouts');
+  let names = [];
+  try { names = fs.readdirSync(dir).filter((n) => n.endsWith('.json')); } catch { names = []; }
+  for (const n of names) {
+    const c = readJson(path.join(dir, n), null);
+    if (ok(c)) byDir.set(c.checkoutDir, c);
+  }
+  return [...byDir.values()].slice(0, 64);
 }
 
 export function registerCheckout(remoteDir, entry) {
-  const file = path.join(remoteDir, 'checkouts.json');
-  const list = readRegistry(remoteDir).filter((c) => c.checkoutDir !== entry.checkoutDir);
-  list.push({ ...entry, updatedAt: new Date().toISOString() });
-  try { writeJsonAtomic(file, { checkouts: list.slice(-32) }); return true; } catch { return false; }
+  const seat = typeof entry.seat === 'string' && /^[a-f0-9]{8,32}$/.test(entry.seat)
+    ? entry.seat
+    : path.basename(String(entry.checkoutDir || 'seat'));
+  const dir = path.join(remoteDir, 'checkouts');
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    writeJsonAtomic(path.join(dir, `${seat}.json`), { ...entry, seat, updatedAt: new Date().toISOString() });
+    return true;
+  } catch { return false; }
 }
 
-async function makeTransport({ remoteUrl, remoteDir, handle, device, mode, lastKnownSha, authorEmail }) {
+async function makeTransport({ remoteUrl, remoteDir, handle, device, seat, mode, lastKnownSha, authorEmail }) {
   if (!remoteUrl) return new LocalTransport({ handle, device });
   try {
     const { GitRefsTransport } = await import('../transport/git-refs.mjs');
-    return new GitRefsTransport({ remoteUrl, remoteDir, handle, device, mode, lastKnownSha, authorEmail });
+    return new GitRefsTransport({ remoteUrl, remoteDir, handle, device, seat, mode, lastKnownSha, authorEmail });
   } catch (err) {
     logLine('worker', `git transport unavailable (${err && err.message}); running local-only`);
     return new LocalTransport({ handle, device });
   }
 }
 
-/** One sync cycle for every checkout registered against this remote. Never throws. */
+/** One sync cycle for every seat registered against this remote. Never throws.
+ *
+ *  Every registered working tree is published to its own ref. The previous version reassigned one `tree`
+ *  variable inside the loop and published only whichever entry came last, so a second clone or worktree had
+ *  its claims, presence and messages silently discarded. */
 export async function tick({ remoteDir, now = Date.now(), state = {}, mayPublish = true }) {
   const rp = paths.remote(remoteDir);
   const registry = readRegistry(remoteDir);
-  const result = { published: false, pulled: false, writers: 0, mode: 'local', checkouts: registry.length, errorClass: null };
+  const result = { published: false, pulled: false, writers: 0, mode: 'local', checkouts: registry.length, seats: 0, errorClass: null };
   if (!registry.length) return result;
   const previous = readJson(rp.snapshot, null);
   const status = readJson(rp.status, {}) || {};
 
-  // The newest registered checkout drives identity and publishing; the others contribute their journals through
-  // their own worker (one remote can be shared by several clones, each with its own checkout directory).
-  let ownEntry = null;
-  let tree = null;
-  let identity = null;
+  // Build one publishable tree per seat. Identity is resolved per entry: two worktrees usually share a handle
+  // and a device, but they never share a seat, and a second clone may resolve a different identity entirely.
+  const seats = [];
   let config = null;
   for (const entry of registry) {
     if (!exists(entry.checkoutDir)) continue;
     pruneSessions(entry.checkoutDir, { now });
     const live = liveSessions(entry.checkoutDir);
     config = config || readConfig(entry.workTree);
-    identity = identity || resolveIdentity({ workTree: entry.workTree, checkoutDir: entry.checkoutDir });
+    const identity = resolveIdentity({ workTree: entry.workTree, checkoutDir: entry.checkoutDir });
     if (!identity) continue;
     // A session that ended without finalizing its handoff draft: publish what it staged.
     const draft = readDraft(entry.checkoutDir);
@@ -81,63 +104,76 @@ export async function tick({ remoteDir, now = Date.now(), state = {}, mayPublish
       const fin = finalizeHandoff(entry.checkoutDir, {}, { draftId: draft.id, sid: draft.sid, now, from: identity.handle });
       if (!fin.ok) logLine('worker', `handoff not finalized: ${fin.error}`);
     }
+    const seat = entry.seat || null;
     const built = buildOwnTree({
-      checkoutDir: entry.checkoutDir, handle: identity.handle, device: identity.device,
+      checkoutDir: entry.checkoutDir, handle: identity.handle, device: identity.device, seat,
       branch: readBranch(entry.gitDir || path.join(entry.workTree, '.git')),
       sessionStartedAt: live.length ? live[0].startedAt : null, pluginVersion: pluginVersion(), now,
     });
     if (!built) continue;
     writeOwnTree(entry.checkoutDir, built.tree);
-    tree = built.tree;
-    ownEntry = {
-      handle: identity.handle, device: identity.device, sha: built.hash, namespace: 'own',
-      presence: built.presence,
-      claims: JSON.parse(built.tree['claims.json']),
-      board: JSON.parse(built.tree['board.json']),
-      contracts: JSON.parse(built.tree['contracts.json']),
-      messages: [], handoffs: [],
-    };
-    state.ownHash = state.ownHash || {};
-    state.treeHash = built.hash;
-    state.workTree = entry.workTree;
+    seats.push({
+      entry, identity, seat, tree: built.tree,
+      own: {
+        handle: identity.handle, device: identity.device, seat, sha: built.hash, namespace: 'own',
+        presence: built.presence,
+        claims: JSON.parse(built.tree['claims.json']),
+        board: JSON.parse(built.tree['board.json']),
+        contracts: JSON.parse(built.tree['contracts.json']),
+        messages: [], handoffs: [],
+      },
+    });
   }
-  if (!identity || !tree) return result;
+  if (!seats.length) return result;
+  result.seats = seats.length;
+  state.workTree = seats[0].entry.workTree;
 
-  const transport = await makeTransport({
-    remoteUrl: registry[0].remoteUrl, remoteDir, handle: identity.handle, device: identity.device,
-    mode: status.mode || (config && config.transport && config.transport.namespace === 'branch' ? 'branch' : 'custom'),
+  const mode = status.mode || (config && config.transport && config.transport.namespace === 'branch' ? 'branch' : 'custom');
+  const realEmail = Boolean(config && config.transport && config.transport.realEmail);
+  const makeFor = (s) => makeTransport({
+    remoteUrl: s.entry.remoteUrl || registry[0].remoteUrl, remoteDir,
+    handle: s.identity.handle, device: s.identity.device, seat: s.seat, mode,
     lastKnownSha: status.lastKnownSha || {},
-    authorEmail: config && config.transport && config.transport.realEmail ? identity.email : null,
+    authorEmail: realEmail ? s.identity.email || null : null,
   });
 
-  const changed = state.lastPublishedHash !== state.treeHash;
+  // Publish each seat whose own tree changed, or any seat at all once the publish interval has elapsed.
+  state.lastPublishedHash = (state.lastPublishedHash && typeof state.lastPublishedHash === 'object') ? state.lastPublishedHash : {};
   const due = !state.lastPublishAt || now - state.lastPublishAt >= PUBLISH_EVERY_MS;
   if (!mayPublish) result.skippedPublish = 'another worker holds the lock';
-  if (mayPublish && (changed || due)) {
-    const pub = await transport.publish(tree);
-    result.published = !!pub.ok;
-    if (pub.ok) { state.lastPublishedHash = state.treeHash; state.lastPublishAt = now; }
-    else result.errorClass = pub.status && pub.status.lastErrorClass;
+  let lastTransport = null;
+  for (const s of seats) {
+    const key = s.seat || 'default';
+    const transport = await makeFor(s);
+    lastTransport = transport;
+    if (!mayPublish) continue;
+    if (state.lastPublishedHash[key] === s.own.sha && !due) continue;
+    const pub = await transport.publish(s.tree);
+    if (pub.ok) { result.published = true; state.lastPublishedHash[key] = s.own.sha; }
+    else result.errorClass = result.errorClass || (pub.status && pub.status.lastErrorClass);
   }
+  if (result.published) state.lastPublishAt = now;
 
-  const pull = await transport.pull();
-  const tstatus = transport.status();
+  // One pull serves every seat: the fetch brings down the whole namespace, siblings included.
+  const puller = lastTransport || (await makeFor(seats[0]));
+  const pull = await puller.pull();
+  const tstatus = puller.status();
   result.mode = tstatus.mode;
   result.pulled = !!pull.ok;
   const team = readTeam(state.workTree || registry[0].workTree);
+  const own = seats.map((s) => s.own);
+  const localDevice = seats[0].identity.device;
   if (pull.ok) {
-    const snapshot = foldSnapshot({ writers: pull.writers, previous, team, own: ownEntry, transport: tstatus, now });
+    const snapshot = foldSnapshot({ writers: pull.writers, previous, team, own, transport: tstatus, now, localDevice });
     try { writeJsonAtomic(rp.snapshot, snapshot); } catch (err) { logLine('worker', `snapshot write failed: ${err && err.message}`); }
     result.writers = snapshot.writers.length;
   } else {
     result.errorClass = result.errorClass || (pull.status && pull.status.lastErrorClass);
     // Never overwrite good data with a failure: keep the old snapshot and only restamp its transport status.
     const kept = staleSnapshot(previous, tstatus, now);
-    if (previous || ownEntry) {
-      const merged = previous ? kept : foldSnapshot({ writers: [], team, own: ownEntry, transport: tstatus, now });
-      try { writeJsonAtomic(rp.snapshot, merged); } catch { /* keep going */ }
-      result.writers = (merged.writers || []).length;
-    }
+    const merged = previous ? kept : foldSnapshot({ writers: [], team, own, transport: tstatus, now, localDevice });
+    try { writeJsonAtomic(rp.snapshot, merged); } catch { /* keep going */ }
+    result.writers = (merged.writers || []).length;
   }
   try {
     writeJsonAtomic(rp.status, {

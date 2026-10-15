@@ -5,7 +5,7 @@ import { readJson } from '../core/fsx.mjs';
 import { toRepoRelative, CASE_INSENSITIVE, canonicalPath, toPosix, locate } from '../core/paths.mjs';
 import { readConfig, readTeam } from '../core/config.mjs';
 import {
-  isHandle, isDevice, validRepoPath, validTimestamp, validPresence, validClaims, validMessage, validBoard, validHandoff, validContracts,
+  isHandle, isDevice, isSeat, validRepoPath, validTimestamp, validPresence, validClaims, validMessage, validBoard, validHandoff, validContracts,
 } from '../core/schema.mjs';
 
 export const MS = Object.freeze({ minute: 60_000, hour: 3_600_000, day: 86_400_000 });
@@ -14,10 +14,19 @@ const VERIFIED = new Set(['yes', 'unknown-handle', 'email-mismatch', 'manifest-m
 /** Tests pass ctx.now (ms) so timings are deterministic; hooks use the wall clock. */
 export function nowMs(ctx) { return ctx && Number.isFinite(ctx.now) ? ctx.now : Date.now(); }
 
+/** Who this working tree is. The seat is the checkout directory's own name, which workspaceKey() derived from
+ *  this tree's git dir, so it needs no extra file and cannot drift from the directory it describes. Without it
+ *  every hook would fail to recognise its own writer entry and would treat itself as a teammate. */
 export function readIdentity(checkoutDir) {
   const raw = checkoutDir ? readJson(path.join(checkoutDir, 'identity.json'), null) : null;
   if (!raw || !isHandle(raw.handle) || !isDevice(raw.device)) return null;
-  return { handle: raw.handle, device: raw.device, source: typeof raw.source === 'string' ? raw.source.slice(0, 20) : 'unknown' };
+  const fromDir = path.basename(String(checkoutDir));
+  return {
+    handle: raw.handle,
+    device: raw.device,
+    seat: isSeat(fromDir) ? fromDir : null,
+    source: typeof raw.source === 'string' ? raw.source.slice(0, 20) : 'unknown',
+  };
 }
 
 /** Staleness ladder (ADR-001 section 6) for any age: fresh < 5 min, recent < 15 min, stale < 24 h, gone. */
@@ -54,7 +63,8 @@ export function normalizeSnapshot(raw, now = Date.now()) {
   for (const w of raw.writers.slice(0, 200)) {
     if (!w || typeof w !== 'object' || !isHandle(w.handle) || !isDevice(w.device)) continue;
     writers.push({
-      handle: w.handle, device: w.device, sha: typeof w.sha === 'string' ? w.sha.slice(0, 40) : null,
+      handle: w.handle, device: w.device, seat: isSeat(w.seat) ? w.seat : null, local: w.local === true,
+      sha: typeof w.sha === 'string' ? w.sha.slice(0, 40) : null,
       firstSeenAt: validTimestamp(w.firstSeenAt, now), verified: VERIFIED.has(w.verified) ? w.verified : 'unknown-handle',
       presence: validPresence(w.presence, now), claims: validClaims(w.claims, now),
       messages: Array.isArray(w.messages) ? w.messages.map((m) => validMessage(m, now)).filter(Boolean).slice(0, 100) : [],
@@ -80,12 +90,39 @@ export function snapshotFromCtx(ctx) {
   return loadSnapshot(ctx && ctx.snapshotFile, now);
 }
 
+/** "Self" is one seat, not one machine.
+ *
+ *  Before seats existed this compared handle and device only, which meant two agents in two worktrees of one
+ *  clone matched as the same person and each filtered the other out of their own view. Comparing the seat as
+ *  well is what makes sibling agents visible to each other. A writer with no seat comes from a client older
+ *  than seats; its null is a distinct value and only ever matches another null. */
 export function isSelf(writer, identity) {
-  return Boolean(identity && writer.handle === identity.handle && writer.device === identity.device);
+  if (!identity) return false;
+  if (writer.handle !== identity.handle || writer.device !== identity.device) return false;
+  // When either side predates seats, fall back to the old handle-and-device rule. That covers the upgrade
+  // window in both directions: a ref this machine published before seats existed, and local state that has
+  // not been re-resolved yet. Treating those as a stranger would show a developer their own work as a
+  // teammate's, which is worse than briefly under-reporting a sibling.
+  if (!writer.seat || !identity.seat) return true;
+  return writer.seat === identity.seat;
 }
 
+/** Everyone except me: other people, and other seats of mine on this machine. */
 export function teammates(snapshot, identity) {
   return snapshot ? snapshot.writers.filter((w) => !isSelf(w, identity)) : [];
+}
+
+/** Teammates sharing this machine: another working tree of the same clone, or another clone on this disk.
+ *  Their state is on one filesystem with ours, so it can be read without waiting for a remote round trip. */
+export function siblings(snapshot, identity) {
+  if (!identity) return [];
+  return teammates(snapshot, identity).filter((w) => w.device === identity.device);
+}
+
+/** Teammates on other machines, which is the only traffic that ever crossed the network. */
+export function remoteWriters(snapshot, identity) {
+  if (!identity) return teammates(snapshot, identity);
+  return teammates(snapshot, identity).filter((w) => w.device !== identity.device);
 }
 
 /** Age of a writer's presence: the older of "when we first saw this state" and "when they say they were last active". */

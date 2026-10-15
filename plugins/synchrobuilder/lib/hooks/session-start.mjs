@@ -24,7 +24,7 @@ export async function run(input, ctx) {
   if (c.loc.remoteDir) {
     try {
       const { registerCheckout, lockHeldByLive } = await import('../worker/loop.mjs');
-      registerCheckout(c.loc.remoteDir, { checkoutDir: c.loc.checkoutDir, workTree: c.loc.workTree, gitDir: c.loc.gitDir, remoteUrl: c.loc.remoteUrl });
+      registerCheckout(c.loc.remoteDir, { checkoutDir: c.loc.checkoutDir, workTree: c.loc.workTree, gitDir: c.loc.gitDir, remoteUrl: c.loc.remoteUrl, seat: c.loc.seat });
       touch(paths.checkout(c.loc.checkoutDir).kick);
       // SYNCHROBUILDER_NO_WORKER=1 keeps the background sync from starting: useful in tests and in CI, and for
       // anyone who wants the portability features without the team features. Registration still happens, so

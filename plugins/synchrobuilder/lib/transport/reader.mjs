@@ -16,6 +16,8 @@ function parseJson(buf) {
 /** Trust label for one writer: manifest must match the ref, handle must be a team member, author email must be the default or listed. */
 export function verifyWriter(writer, manifest, team) {
   if (!manifest || manifest.handle !== writer.handle || manifest.device !== writer.device) return 'manifest-mismatch';
+  // The seat is part of the address, so a tree may not claim a seat other than the one its ref names.
+  if ((manifest.seat || null) !== (writer.seat || null)) return 'manifest-mismatch';
   const members = team && team.members && typeof team.members === 'object' ? team.members : null;
   // A repo without team.json runs on provisional handles (ADR-002 section 3), so there is no membership to check.
   if (!members || Object.keys(members).length === 0) return 'yes';
@@ -29,7 +31,7 @@ export function verifyWriter(writer, manifest, team) {
 
 function cleanPresence(p, writer, receiptMs) {
   const v = validPresence(p, receiptMs);
-  if (!v || v.handle !== writer.handle || v.device !== writer.device) return null;
+  if (!v || v.handle !== writer.handle || v.device !== writer.device || (v.seat || null) !== (writer.seat || null)) return null;
   return { ...v, task: sanitizeLine(v.task, LIMITS.task) };
 }
 
@@ -65,7 +67,7 @@ export function parseWriter(writer, { team = null, receiptMs = Date.now() } = {}
   const files = writer && writer.files && typeof writer.files === 'object' ? writer.files : {};
   const manifest = validManifest(parseJson(files['manifest.json']));
   const entry = {
-    handle: writer.handle, device: writer.device, sha: writer.sha, namespace: writer.namespace || null,
+    handle: writer.handle, device: writer.device, seat: writer.seat || null, sha: writer.sha, namespace: writer.namespace || null,
     firstSeenAt: new Date(receiptMs).toISOString(),
     verified: verifyWriter(writer, manifest, team),
     schemaVersion: manifest ? manifest.schemaVersion : 0,

@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { LIMITS, SCHEMA_VERSION, isHandle, isDevice, validRepoPath, validBranch, isTaskId } from '../core/schema.mjs';
+import { LIMITS, SCHEMA_VERSION, isHandle, isDevice, isSeat, validRepoPath, validBranch, isTaskId } from '../core/schema.mjs';
 import { readEvents } from './journal.mjs';
 import { paths } from './layout.mjs';
 import { logLine } from '../core/log.mjs';
@@ -92,8 +92,9 @@ function areaOf(edits) {
  * Build the files this developer publishes. Returns { tree, hash, presence } where tree maps a file name to its JSON text.
  * Nothing here reads the network or runs git; the caller supplies handle, device, branch and an optional task summary.
  */
-export function buildOwnTree({ checkoutDir, handle, device, branch = null, task = '', sessionStartedAt = null, pluginVersion = null, now = Date.now(), events = null }) {
+export function buildOwnTree({ checkoutDir, handle, device, seat = null, branch = null, task = '', sessionStartedAt = null, pluginVersion = null, now = Date.now(), events = null }) {
   if (!isHandle(handle) || !isDevice(device)) return null;
+  const st = isSeat(seat) ? seat : null;
   const list = events || readEvents(checkoutDir);
   const br = validBranch(branch) || null;
   const summaryEvent = [...list].reverse().find((e) => e.type === 'task-summary' && typeof e.text === 'string' && e.text.trim());
@@ -102,6 +103,7 @@ export function buildOwnTree({ checkoutDir, handle, device, branch = null, task 
   const presence = {
     handle,
     device,
+    seat: st,
     branch: br,
     task: clean(task || (summaryEvent ? summaryEvent.text : '') || summaryFromBranch(br), LIMITS.task),
     area: areaOf(edits),
@@ -111,7 +113,7 @@ export function buildOwnTree({ checkoutDir, handle, device, branch = null, task 
     edits,
   };
   const tree = {
-    'manifest.json': JSON.stringify({ handle, device, schemaVersion: SCHEMA_VERSION }),
+    'manifest.json': JSON.stringify({ handle, device, seat: st, schemaVersion: SCHEMA_VERSION }),
     'presence.json': JSON.stringify(presence),
     'claims.json': JSON.stringify(foldClaims(list, now)),
     'board.json': JSON.stringify(foldBoardOps(list)),

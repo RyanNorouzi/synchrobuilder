@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Transport, REF_NAMESPACE, BRANCH_NAMESPACE, LOCAL_CUSTOM, LOCAL_HEADS } from './interface.mjs';
 import { createRunner, initHidden, firstLine, parseLsRemote, parseForEachRef, parseLsTree, parseBatchCheck, parseCatFileBatch, FOR_EACH_REF_FORMAT } from './git-runner.mjs';
-import { LIMITS, SCHEMA_VERSION, isHandle, isDevice, validRepoPath, nowIso } from '../core/schema.mjs';
+import { LIMITS, SCHEMA_VERSION, isHandle, isDevice, isSeat, validRepoPath, nowIso } from '../core/schema.mjs';
 import { logLine } from '../core/log.mjs';
 import { redact } from '../safety/redact.mjs';
 import { paths } from '../state/layout.mjs';
@@ -25,22 +25,35 @@ export function allowedStatePath(p) {
   return v && ALLOWED_FILE.test(v) ? v : null;
 }
 
-/** Parse a local mirror ref into { handle, device, namespace } or null when it is not a well-formed writer ref. */
+/** Parse a local mirror ref into { handle, device, seat, namespace }, or null when it is not a well-formed
+ *  writer ref.
+ *
+ *  Two shapes are accepted. `<handle>/<device>/<seat>` is what this version publishes: one entry per working
+ *  tree, so two agents in two worktrees of one clone are two participants. `<handle>/<device>` is what every
+ *  release before seats published, and it still reads, with `seat: null` marking it as coming from a client
+ *  that had only one seat per machine. A null seat is its own distinct value, never equal to a real one. */
 export function parseWriterRef(ref) {
   const ns = ref.startsWith(`${LOCAL_CUSTOM}/`) ? 'custom' : ref.startsWith(`${LOCAL_HEADS}/`) ? 'branch' : null;
   if (!ns) return null;
   const rest = ref.slice((ns === 'custom' ? LOCAL_CUSTOM : LOCAL_HEADS).length + 1).split('/');
-  if (rest.length !== 2 || !isHandle(rest[0]) || !isDevice(rest[1])) return null;
-  return { handle: rest[0], device: rest[1], namespace: ns };
+  if (rest.length < 2 || rest.length > 3) return null;
+  if (!isHandle(rest[0]) || !isDevice(rest[1])) return null;
+  if (rest.length === 3 && !isSeat(rest[2])) return null;
+  return { handle: rest[0], device: rest[1], seat: rest.length === 3 ? rest[2] : null, namespace: ns };
 }
 
+/** The key that identifies one participant. A seat-less writer from an older client keeps its own slot. */
+export function writerKey({ handle, device, seat }) { return `${handle}/${device}/${seat || '-'}`; }
+
 export class GitRefsTransport extends Transport {
-  constructor({ remoteUrl, remoteDir, handle, device, mode = 'custom', lastKnownSha = {}, authorEmail = null, runner = null } = {}) {
+  constructor({ remoteUrl, remoteDir, handle, device, seat = null, mode = 'custom', lastKnownSha = {}, authorEmail = null, runner = null } = {}) {
     super();
     this.remoteUrl = String(remoteUrl || '');
     this.remoteDir = remoteDir;
     this.handle = handle;
     this.device = device;
+    // One seat per working tree. Without one this falls back to the pre-seat two-segment ref.
+    this.seat = isSeat(seat) ? seat : null;
     this.mode = MODES.includes(mode) ? mode : 'custom';
     this.repoDir = paths.remote(remoteDir).repo;
     this.runner = runner || createRunner({ repoDir: this.repoDir });
@@ -53,8 +66,9 @@ export class GitRefsTransport extends Transport {
     this._status = { mode: this.mode, lastError: null, lastErrorClass: null, lastOkAt: null, nextAttemptAt: null };
   }
 
-  get customRef() { return `${REF_NAMESPACE}/${this.handle}/${this.device}`; }
-  get branchRef() { return `${BRANCH_NAMESPACE}/${this.handle}/${this.device}`; }
+  get _suffix() { return this.seat ? `${this.handle}/${this.device}/${this.seat}` : `${this.handle}/${this.device}`; }
+  get customRef() { return `${REF_NAMESPACE}/${this._suffix}`; }
+  get branchRef() { return `${BRANCH_NAMESPACE}/${this._suffix}`; }
 
   status() { return { ...this._status, mode: this.mode, lastKnownSha: { ...this.lastKnownSha } }; }
 
@@ -268,7 +282,7 @@ export class GitRefsTransport extends Transport {
     for (const r of refs) {
       const id = parseWriterRef(r.ref);
       if (!id) continue;
-      const key = `${id.handle}/${id.device}`;
+      const key = writerKey(id);
       const prev = byKey.get(key);
       const cand = { ...id, ...r };
       if (!prev || cand.committerDate > prev.committerDate || (cand.committerDate === prev.committerDate && cand.namespace === 'custom')) byKey.set(key, cand);
@@ -292,7 +306,7 @@ export class GitRefsTransport extends Transport {
         files = read.files;
       }
       next.set(w.sha, files);
-      out.push({ handle: w.handle, device: w.device, sha: w.sha, namespace: w.namespace, committerDate: w.committerDate, email: w.email, files });
+      out.push({ handle: w.handle, device: w.device, seat: w.seat || null, sha: w.sha, namespace: w.namespace, committerDate: w.committerDate, email: w.email, files });
     }
     this.cache = next;
     return out;

@@ -115,9 +115,22 @@ export function normalizeRemoteUrl(url) {
 }
 
 export function remoteKey(url) { return shortHash(normalizeRemoteUrl(url)); }
-export function checkoutKey(commonDir) { return shortHash(canonicalPath(commonDir)); }
 
-export function checkoutDir(commonDir) { return path.join(homeDir(), 'checkouts', checkoutKey(commonDir)); }
+/** One workspace is one git working tree, which means one seat at the table.
+ *
+ *  This hashes the working tree's OWN git directory, not the common one. A plain clone keeps the key it
+ *  always had, because there `gitDir` and `commonDir` are the same path. A linked worktree gets its own key
+ *  instead of inheriting the main checkout's, which is what lets two agents in two worktrees hold separate
+ *  journals, claims, throttles and guard caches rather than silently sharing one set (ADR-002 amendment).
+ *
+ *  The value doubles as the published `seat`: eight hex characters of a one-way hash of a local path, so it
+ *  distinguishes workspaces without carrying anything about the machine off it. */
+export function workspaceKey(gitDir) { return shortHash(canonicalPath(gitDir)); }
+
+/** Kept for callers that still think in terms of the common directory. Prefer workspaceKey. */
+export function checkoutKey(gitDir) { return workspaceKey(gitDir); }
+
+export function checkoutDir(gitDir) { return path.join(homeDir(), 'checkouts', workspaceKey(gitDir)); }
 export function remoteDir(url) { return path.join(homeDir(), 'remotes', remoteKey(url)); }
 
 /** Everything a hook needs to know about where it is, found without spawning anything. Returns null outside a git repository. */
@@ -128,7 +141,9 @@ export function locate(startDir) {
   return {
     ...dirs,
     remoteUrl,
-    checkoutDir: checkoutDir(dirs.commonDir),
+    // Keyed on this working tree's own git dir, so each worktree is its own seat.
+    checkoutDir: checkoutDir(dirs.gitDir),
+    seat: workspaceKey(dirs.gitDir),
     remoteDir: remoteUrl ? remoteDir(remoteUrl) : null,
     repoName: path.basename(dirs.workTree),
   };

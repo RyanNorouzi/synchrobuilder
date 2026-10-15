@@ -57,12 +57,13 @@ export function gitEmail(workTree) {
 export function resolveIdentity({ workTree, checkoutDir, email = undefined }) {
   const device = getOrCreateDevice();
   const existing = readIdentityFile(checkoutDir);
+  const addr = email === undefined ? gitEmail(workTree) : email;
   if (existing && existing.source === 'override') {
     if (existing.device !== device) writeIdentity(checkoutDir, { ...existing, device });
-    return { ...existing, device };
+    // email rides on the returned object only, never into identity.json and never into a published tree.
+    return { ...existing, device, email: addr || null };
   }
   const team = readTeam(workTree);
-  const addr = email === undefined ? gitEmail(workTree) : email;
   let handle = null;
   let source = 'provisional';
   if (addr) {
@@ -73,12 +74,14 @@ export function resolveIdentity({ workTree, checkoutDir, email = undefined }) {
   }
   if (!handle) {
     // No git email at all: keep any previous answer rather than inventing a new one every tick.
-    if (existing) return existing;
+    if (existing) return { ...existing, email: addr || null };
     return null;
   }
   const identity = { handle, device, source, resolvedAt: new Date().toISOString() };
   if (!existing || existing.handle !== handle || existing.device !== device || existing.source !== source) writeIdentity(checkoutDir, identity);
-  return identity;
+  // The transport's realEmail opt-in reads this. It is deliberately not persisted and never published:
+  // buildOwnTree copies named fields only, so the address cannot reach a tree by accident.
+  return { ...identity, email: addr || null };
 }
 
 /** What the status and doctor commands print about identity, including the nudge when the handle is not in the team file. */
