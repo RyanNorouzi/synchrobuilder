@@ -34,7 +34,10 @@ async function stageNow(c) {
 export async function run({ flags, args, cwd, stdout, stderr }) {
   const c = resolveContext(cwd);
   if (!c) { stderr.write('Not inside a git repository.\n'); return 1; }
-  const handles = [...args, ...(typeof flags.for === 'string' ? flags.for.split(',') : [])].map((h) => h.trim().replace(/^@/, '')).filter(Boolean);
+  // Deduped: a handle can arrive both positionally and through --for, and "recorded for sam, sam" is wrong.
+  const handles = [...new Set(
+    [...args, ...(typeof flags.for === 'string' ? flags.for.split(',') : [])].map((h) => h.trim().replace(/^@/, '')).filter(Boolean),
+  )];
   const bad = handles.filter((h) => !isHandle(h));
   if (bad.length) { stderr.write(`Invalid handle(s): ${bad.join(', ')}\n${USAGE}`); return 1; }
 

@@ -181,3 +181,14 @@ test('status: identity, transport, teammates with staleness labels, board summar
   const outside = spawnSync(process.execPath, [bin, 'status'], { encoding: 'utf8', env: bare.env(), cwd: bare.home, timeout: 15000 });
   assert.equal(outside.status, 1);
 });
+
+test('handoff: a handle given both positionally and with --for is recorded once', async () => {
+  const rig = await cliRig();
+  rig.journal([{ t: new Date(Date.now() - 60_000).toISOString(), sid: 's1', type: 'edit', path: 'src/checkout.ts' }]);
+  const draft = rig.run('handoff', 'bob', '--draft');
+  const id = (draft.out.match(/Handoff draft ([0-9A-HJKMNP-TV-Z]{26})/) || [])[1];
+  assert.ok(id, `expected a draft id, got: ${draft.out}`);
+  const r = rig.run('handoff', 'bob', '--confirm', id, '--for', 'bob');
+  assert.match(r.out, /recorded for bob;/, `the recipient must appear once, got: ${r.out}`);
+  assert.ok(!/bob, bob/.test(r.out), 'no duplicate recipient');
+});
