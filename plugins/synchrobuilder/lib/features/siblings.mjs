@@ -13,8 +13,12 @@ import path from 'node:path';
 import { readJson } from '../core/fsx.mjs';
 import { validClaims, validPresence, isSeat } from '../core/schema.mjs';
 import { liveSessions } from '../state/sessions.mjs';
+
+// Enough journal to hold every claim a session realistically makes, and bounded so the cost does not grow
+// with the age of the checkout. The pre-edit hook that reads this has a 120 ms watchdog.
+const TAIL_BYTES = 64 * 1024;
 import { logLine } from '../core/log.mjs';
-import { readEvents } from '../state/journal.mjs';
+import { readJournalTail } from './journal-write.mjs';
 import { foldClaims } from '../state/own.mjs';
 
 /** Every seat registered against this remote on this machine, this one included. */
@@ -50,17 +54,39 @@ export function siblingWriters(loc, identity, now = Date.now()) {
     if (!seat.seat || seat.seat === mySeat) continue;
     if (seat.checkoutDir === loc.checkoutDir) continue;
     const presence = validPresence(readJson(path.join(seat.checkoutDir, 'own', 'presence.json'), null), now);
-    // Fold the sibling's journal rather than reading its published own/claims.json. The journal is appended
-    // the instant a claim is made; own/ is only rewritten on the next worker tick. Reading the journal is what
-    // turns "sees it within a sync interval" into "sees it within milliseconds", which is the whole point.
-    let claims = [];
+    // Two sources, unioned, because neither alone is both fast and current.
+    //
+    // own/claims.json is what the worker last published: cheap to read, but a tick behind, so it misses the
+    // claim made a second ago that this whole path exists to catch. The journal has that claim the instant it
+    // is written, but reading all of it is unbounded work inside a hook with a 120 ms watchdog, and a journal
+    // grows for the life of a checkout. A bounded tail keeps the cost flat and catches anything recent; the
+    // published copy covers an older claim that fell outside the tail.
+    const published = validClaims(readJson(path.join(seat.checkoutDir, 'own', 'claims.json'), null), now) || [];
+    let claims = published;
     try {
-      claims = foldClaims(readEvents(seat.checkoutDir), now) || [];
+      const tail = readJournalTail(seat.checkoutDir, { maxBytes: TAIL_BYTES });
+      const recent = foldClaims(tail, now) || [];
+      // A claim in the published copy but absent from the tail is ambiguous: either it was released inside
+      // the tail, or it predates the tail. Only a release event can tell those apart, so look for one.
+      const releases = new Set();
+      let releasedEverything = false;
+      for (const ev of tail) {
+        if (ev.type !== 'release') continue;
+        if (!ev.path && !ev.task && !ev.id) { releasedEverything = true; continue; }
+        if (ev.path) releases.add(ev.path);
+        if (ev.task) releases.add(`task:${ev.task}`);
+      }
+      const keyOf = (c) => c.path || `task:${c.task}`;
+      const merged = new Map();
+      if (!releasedEverything) {
+        for (const c of published) if (!releases.has(keyOf(c))) merged.set(keyOf(c), c);
+      }
+      for (const c of recent) merged.set(keyOf(c), c);   // the tail is the newer view wherever the two overlap
+      claims = [...merged.values()];
     } catch (err) {
-      // Falling back to the published copy is correct, but doing it silently once hid a real failure on one
-      // CI platform for a whole run: the warning simply never appeared and nothing said why.
-      logLine('features', `sibling journal fold failed for ${seat.seat}: ${err && err.message}`);
-      claims = validClaims(readJson(path.join(seat.checkoutDir, 'own', 'claims.json'), null), now) || [];
+      // Falling back to the published copy alone is correct, but doing it silently once hid a real failure on
+      // one CI platform for a whole run: the warning simply never appeared and nothing said why.
+      logLine('features', `sibling journal tail failed for ${seat.seat}: ${err && err.message}`);
     }
     if (!presence && !claims.length) continue;
     let live = false;

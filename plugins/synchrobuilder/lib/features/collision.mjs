@@ -5,6 +5,7 @@
 // Advisory by default. The one exception is mode 'block', which denies an edit to a file a LIVE SIBLING on
 // this machine is holding. A remote writer can never trigger it and neither can a finished session, and every
 // internal error path still fails open (ADR-003 amendment).
+import fs from 'node:fs';
 import path from 'node:path';
 import { readJson, writeJsonAtomic } from '../core/fsx.mjs';
 import { CASE_INSENSITIVE } from '../core/paths.mjs';
@@ -14,7 +15,6 @@ import { sanitizeLine } from '../safety/sanitize.mjs';
 import { logLine } from '../core/log.mjs';
 import { nowMs, readIdentity, snapshotFromCtx, teammates, claimActive, claimAgeMs, coversPath, samePath, repoRelativePath, fmtAgo, hhmmZ, MS } from './common.mjs';
 import { renderBudgeted } from './budget.mjs';
-import { withSiblings } from './siblings.mjs';
 
 const EDIT_WINDOW_MS = 30 * MS.minute;
 const NEVER_ASK = new Set(['dontAsk', 'bypassPermissions', 'plan']);
@@ -64,6 +64,21 @@ function throttled(checkoutDir, rel, now, windowMinutes, suffix = '') {
 
 function verb(m) { return m.kind === 'claim' ? 'claimed' : 'edited'; }
 
+/** withSiblings, but only when this machine has more than one seat on this remote. */
+async function maybeWithSiblings(snapshot, loc, identity, now) {
+  try {
+    const names = fs.readdirSync(path.join(loc.remoteDir || '', 'checkouts'));
+    if (names.filter((n) => n.endsWith('.json')).length < 2) return snapshot;
+  } catch { return snapshot; }   // no registry directory means no siblings
+  try {
+    const { withSiblings } = await import('./siblings.mjs');
+    return withSiblings(snapshot, loc, identity, now);
+  } catch (err) {
+    logLine('features', `sibling view unavailable: ${err && err.message}`);
+    return snapshot;
+  }
+}
+
 export async function collision(ctx, toolInput) {
   if (!ctx || !ctx.loc || ctx.muted) return null;
   const now = nowMs(ctx);
@@ -75,7 +90,11 @@ export async function collision(ctx, toolInput) {
   // Siblings are read off this disk, so their claims are current even when the last fetch is old or failed.
   // That is what makes two agents in two worktrees react to each other in milliseconds instead of a sync
   // interval. It cannot resurrect a dead remote: anything from another machine still comes via the snapshot.
-  const snapshot = withSiblings(remote, ctx.loc, identity, now);
+  //
+  // Loaded only when a second seat is actually registered. This hook has a 120 ms watchdog and most checkouts
+  // have exactly one seat, so a developer working alone must not pay to import and run a path that can have
+  // nothing to say. Counting the registry is one readdir.
+  const snapshot = (await maybeWithSiblings(remote, ctx.loc, identity, now)) || remote;
   if (!snapshot || (remote && remote.tier === 'gone' && !snapshot.writers.some((w) => w.local))) return null;
   const matches = findMatches(snapshot, identity, rel, now);
   if (!matches.length) return null;

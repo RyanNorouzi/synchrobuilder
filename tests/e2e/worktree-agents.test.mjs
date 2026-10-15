@@ -66,10 +66,15 @@ async function sawWhat(rel) {
 
 /** Everything that might explain a hook that said nothing: its own output, and the plugin's local log. */
 function explain(label, r) {
+  // hooks.log is where the watchdog records itself, which is the one thing an empty stdout cannot tell us.
   let log = '(no log)';
   try {
-    const f = path.join(home, 'logs', 'features.log');
-    if (fs.existsSync(f)) log = fs.readFileSync(f, 'utf8').trim().split('\n').slice(-6).join(' | ');
+    const parts = [];
+    for (const name of ['hooks', 'features']) {
+      const f = path.join(home, 'logs', `${name}.log`);
+      if (fs.existsSync(f)) parts.push(`${name}: ${fs.readFileSync(f, 'utf8').trim().split('\n').slice(-4).join(' / ')}`);
+    }
+    if (parts.length) log = parts.join('  ||  ');
   } catch { /* diagnostics only */ }
   const seats = (() => {
     try { return fs.readdirSync(path.join(locA.remoteDir, 'checkouts')).join(','); } catch { return '(none)'; }
