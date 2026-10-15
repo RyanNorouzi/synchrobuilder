@@ -162,7 +162,12 @@ function waitMs(config, errorClass, failures) {
 export async function runWorker({ remoteDir, once = false, now = () => Date.now(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
   const rp = paths.remote(remoteDir);
   fs.mkdirSync(remoteDir, { recursive: true });
-  if (!once && !acquireLock(rp.lock)) return { ok: false, reason: 'another worker holds the lock' };
+  // acquireLock returns a result object, so it must be read through .ok: an object is always truthy and a
+  // bare negation would let a second worker start beside the first and race it for this writer's ref.
+  if (!once) {
+    const got = acquireLock(rp.lock);
+    if (!got.ok) return { ok: false, reason: 'another worker holds the lock', holder: got.holder || null };
+  }
   // A one-off tick does not take the lock, so it must not publish while a live worker owns this writer's ref:
   // both would build a tree from their own read of the journal and the later push would win, possibly with older state.
   const mayPublish = once ? !lockHeldByLive(rp.lock) : true;
@@ -173,16 +178,22 @@ export async function runWorker({ remoteDir, once = false, now = () => Date.now(
   try {
     for (;;) {
       const t = now();
+      // Baseline for the next sleep, taken before the tick rather than after it. A hook that kicks while the
+      // tick is still running would otherwise have its wake-up swallowed, and its work would sit unpublished
+      // for a whole interval.
+      const tickStartedAt = Date.now();
       last = await tick({ remoteDir, now: t, state, mayPublish });
       failures = last.errorClass ? failures + 1 : 0;
       if (once) return { ok: true, ...last };
-      heartbeatLock(rp.lock);
+      // Losing the lock means another worker took over after this pid looked dead (a suspended laptop, a stopped
+      // process). Two publishers for one ref let an older tree win the push, so the loser stops here.
+      if (!heartbeatLock(rp.lock)) return { ok: true, reason: 'lost the lock to another worker', ...last };
       const anyLive = readRegistry(remoteDir).some((c) => liveSessions(c.checkoutDir).length > 0);
       idleTicks = anyLive ? 0 : idleTicks + 1;
       if (idleTicks >= 2) return { ok: true, reason: 'no live sessions', ...last };
       const cfg = readConfig(state.workTree || '.');
       const waitFor = waitMs(cfg, last.errorClass, failures);
-      await sleepUntilKick({ remoteDir, waitFor, sleep });
+      await sleepUntilKick({ remoteDir, waitFor, sleep, since: tickStartedAt });
     }
   } catch (err) {
     logLine('worker', `loop failed: ${err && err.stack ? err.stack.split('\n')[0] : err}`);
@@ -192,10 +203,16 @@ export async function runWorker({ remoteDir, once = false, now = () => Date.now(
   }
 }
 
-/** Sleep, but wake early when any registered checkout touches its kick file. */
-async function sleepUntilKick({ remoteDir, waitFor, sleep }) {
+/** Sleep, but wake early when any registered checkout touches its kick file.
+ *  `since` is when the tick that preceded this sleep began, so a kick that landed while that tick was still
+ *  running still counts and is not silently dropped. It returns immediately in that case. */
+export async function sleepUntilKick({ remoteDir, waitFor, sleep, since = null }) {
   const kicks = readRegistry(remoteDir).map((c) => paths.checkout(c.checkoutDir).kick);
-  const before = kicks.map((f) => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } });
+  const mtime = (f) => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } };
+  const before = kicks.map(mtime);
+  // A kick that landed while the preceding tick was running is already newer than that tick's start: act on it
+  // now instead of sleeping through work that is waiting to be published.
+  if (since !== null && before.some((m) => m > since)) return;
   const step = 1000;
   for (let waited = 0; waited < waitFor; waited += step) {
     await sleep(Math.min(step, waitFor - waited));

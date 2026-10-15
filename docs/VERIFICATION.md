@@ -24,7 +24,7 @@ node plugins/synchrobuilder/bin/synchrobuilder.mjs audit --strict
 
 ## Verified by the test suite on three operating systems
 
-223 tests, 222 passing and 1 skipped. The CI matrix runs them on ubuntu, macos and
+245 tests, 244 passing and 1 skipped. The CI matrix runs them on ubuntu, macos and
 windows, on Node 20 and Node 24, plus a Windows job that checks the repository out with
 CRLF line endings. Every job passed on 2026-09-18
 (`https://github.com/RyanNorouzi/synchrobuilder/actions`). Two real bugs were found by
@@ -45,15 +45,18 @@ runs on the Linux CI job.
 | Path identity | One checkout resolves to one state directory through symlinks, worktrees and `gitdir:` files; remote URL spellings normalize to one key | `tests/unit/paths.test.mjs` |
 | Untrusted input | Identifier validators reject traversal, Windows-illegal names, control and format characters, homoglyphs and future timestamps | `tests/unit/schema.test.mjs` |
 | Sanitizer and wrapper | The ADR-005 pipeline, the nonce-delimited wrapper and its guard, plus the 48-payload injection corpus from the threat model | `tests/injection/corpus.test.mjs`, `tests/unit/{sanitize,redact,wrap}.test.mjs` |
-| Audit rules | Twelve rules with positive and negative fixtures | `tests/unit/audit-rules-1.test.mjs`, `tests/unit/audit-rules-2.test.mjs` |
+| Audit rules | Twelve rules with positive and negative fixtures | `tests/unit/audit-rules-1.test.mjs`, `tests/unit/audit-rule-path-concat.test.mjs`, `tests/integration/audit-demo.test.mjs` |
 | Audit on the demo repo | Every planted bug is reported, the score is below 50, `--strict` exits 1, `--only` and `--report` work | `tests/integration/audit-demo.test.mjs` |
 | Fixers | Each fixer on fixtures, diffs, idempotence, refusal to touch what it cannot parse or paths outside the repository | `tests/unit/fix.test.mjs` |
-| Manifest | Schema accepts and rejects per ADR-004, including shell syntax in commands and a value on an env entry | `tests/unit/manifest.test.mjs` |
+| Manifest | The reader and the shell-syntax rule, exercised through the setup planner: a command containing shell syntax becomes a manual step instead of being spawned, and a junk manifest yields no plan rather than throwing. The schema validator has **no dedicated test**; see Not verified. | `tests/unit/setup-plan.test.mjs` |
 | Doctor | Findings ordered blocker, likely, note, each with an OS-specific fix; the fingerprint contains no environment variable values | `tests/unit/doctor-ci.test.mjs` |
 | CI generator | Three runners, exact pinned versions, per-OS overrides as guarded steps, a health check that no quoting can break | `tests/unit/doctor-ci.test.mjs` |
-| Setup | Plans for the three platforms, consent flags, manual steps for anything needing elevation, health checks over HTTP and by command | `tests/unit/setup-*.test.mjs`, `tests/unit/health.test.mjs` |
+| Setup | Plans for the three platforms, consent flags, manual steps for anything needing elevation, and the health-check step that no quoting can break | `tests/unit/setup-plan.test.mjs`, `tests/unit/doctor-ci.test.mjs` |
 | Multiplayer features | Digest, inbox, collision, contracts, handoff, board, seats and the status line, against fixture snapshots | `tests/unit/features-*.test.mjs` |
-| Transport | Two developers over a real bare git remote: publish, pull, force-push survival, a poisoned ref, a mirror push that deletes the refs, an unreachable remote | `tests/e2e/transport.test.mjs` |
+| Transport | Publish and pull between two developers over a real bare git remote, and an unreachable remote that queues locally and recovers. Force-push survival, a poisoned ref and a mirror push that deletes the namespace are **not covered**; see Not verified. | `tests/e2e/multiplayer.test.mjs` |
+| Worker mutual exclusion | One worker per remote: a live holder keeps the lock, a dead holder is taken over, a non-owner can neither heartbeat nor release, `runWorker` refuses to start beside a live worker, and a worker whose lock is taken over mid-run stops instead of publishing beside the new holder | `tests/unit/lock.test.mjs` |
+| Worker wake-ups | A kick that lands while a tick is still running wakes the worker immediately instead of being swallowed for a whole interval | `tests/unit/lock.test.mjs` |
+| The detached worker, end to end | A session start spawns a real detached worker that takes the lock and publishes to the remote; a second worker refuses to start beside it; the other developer's worker pulls the claim; the session ends and the worker finishes a last tick, delivers that final claim and exits releasing its lock; neither repository is written to | `tests/e2e/worker.test.mjs` |
 | Multiplayer end to end | Two developers, one bare remote, no Claude: presence, a claim producing a collision warning, a message round trip, a handoff reaching the other developer's digest, offline queueing and recovery, and neither repository touched | `tests/e2e/multiplayer.test.mjs` |
 
 ## Verified by running the real Claude Code CLI
@@ -142,13 +145,15 @@ Nothing below is claimed anywhere as working.
 
 | What | Why not | How it gets verified |
 | :-- | :-- | :-- |
-| The detached background worker outliving a session on Windows and Linux | The suite runs with the worker disabled so tests drive sync themselves; only the macOS case has been observed directly | A CI step that starts a session, ends it, and checks the worker finished its last tick |
+| The detached background worker on Windows and Linux | `tests/e2e/worker.test.mjs` covers it and has been run on macOS. The same test runs on the Windows and ubuntu CI jobs; until that matrix has gone green with this file in it, only the macOS result is claimed | The existing CI matrix, with this test in it |
 | The `ask` permission prompt | Interactive only | Manual pass before release |
 | The status line as Claude Code renders it | Interactive only | Manual pass before release |
 | Plugin monitors | Experimental and interactive only; Synchrobuilder treats them as an optional accelerator and does not ship one yet | Manual pass, if the feature is adopted |
 | Custom git refs on GitLab, Bitbucket and Azure DevOps | Only GitHub was available here | Repeat the hosted transport check on each provider |
 | Branch protection and rulesets refusing the state ref | The test repository had no rules configured | Enable a repository-wide ruleset and re-run the hosted transport check |
 | The bare `/audit` short form in the command menu | Interactive only | Manual pass before release |
+| The manifest schema validator | It is reached only indirectly, through the setup planner. Its own rules (exact versions, length and count limits, duplicate env names, `default` beside `value`) have no test asserting them directly | A dedicated `tests/unit/manifest.test.mjs` |
+| Force-push survival, a poisoned ref, and a mirror push that deletes the namespace | The hosted GitHub check confirmed `--force-with-lease` replaces the writer's own ref, but no test drives a hostile or destructive remote | An end-to-end test that corrupts and deletes the namespace between ticks |
 | Package managers resolved without a shell on Windows | The resolution code exists and is unit tested with a fake layout; no real Windows run | Windows CI |
 
 ## How to keep this file honest
