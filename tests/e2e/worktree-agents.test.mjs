@@ -71,8 +71,11 @@ test('two agents in two worktrees of one clone', { skip: !READY && 'plugin not b
   git(main, 'config', 'user.name', 'alice');
   git(main, 'config', 'user.email', 'alice@example.com');
   fs.mkdirSync(path.join(main, 'src'), { recursive: true });
-  fs.writeFileSync(path.join(main, 'src', 'api.ts'), 'export const x = 1;\n');
-  fs.writeFileSync(path.join(main, 'src', 'other.ts'), 'export const y = 2;\n');
+  // One file per subtest. The warning throttle is keyed by path, so sharing a file between subtests makes
+  // each one depend on the previous one's timing, which is exactly the flake this avoids.
+  for (const n of ['api', 'unclaimed', 'warnmode', 'blockmode', 'released', 'stale']) {
+    fs.writeFileSync(path.join(main, 'src', `${n}.ts`), `export const ${n} = 1;\n`);
+  }
   git(main, 'add', '-A');
   git(main, 'commit', '-q', '-m', 'init');
   git(main, 'push', '-q', 'origin', 'HEAD:main');
@@ -116,37 +119,42 @@ test('two agents in two worktrees of one clone', { skip: !READY && 'plugin not b
   });
 
   await t.test('an unrelated file is not warned about', () => {
-    assert.equal((preEdit(B, 'sid-b', 'src/other.ts').stdout || '').trim(), '', 'no warning for a file nobody holds');
+    assert.equal((preEdit(B, 'sid-b', 'src/unclaimed.ts').stdout || '').trim(), '', 'no warning for a file nobody holds');
   });
 
   await t.test('warn mode never refuses the edit', () => {
     writeConfig({ mode: 'warn', windowMinutes: 30, siblingWindowMinutes: 0 });
-    const out = parse(preEdit(B, 'sid-b', 'src/api.ts'));
-    assert.ok(out, 'still warned');
+    assert.equal(run(A, 'claim', 'src/warnmode.ts').code, 0);
+    const r = preEdit(B, 'sid-b', 'src/warnmode.ts');
+    const out = parse(r);
+    assert.ok(out, explain('warn mode produced nothing', r));
     assert.ok(!('permissionDecision' in out.hookSpecificOutput), 'warn mode stays advisory');
   });
 
   await t.test('block mode refuses a file a live sibling is holding, and says how it clears', () => {
     writeConfig({ mode: 'block', windowMinutes: 30, siblingWindowMinutes: 0 });
-    const r = preEdit(B, 'sid-b', 'src/api.ts');
+    assert.equal(run(A, 'claim', 'src/blockmode.ts').code, 0);
+    const r = preEdit(B, 'sid-b', 'src/blockmode.ts');
     const out = parse(r);
     assert.ok(out, explain('block mode produced nothing', r));
     assert.equal(out.hookSpecificOutput.permissionDecision, 'deny');
     const why = out.hookSpecificOutput.permissionDecisionReason;
-    assert.match(why, /another agent on this machine is holding src\/api\.ts/);
-    assert.match(why, /synchrobuilder release src\/api\.ts/, 'names the real command that lifts it');
+    assert.match(why, /another agent on this machine is holding src\/blockmode\.ts/);
+    assert.match(why, /synchrobuilder release src\/blockmode\.ts/, 'names the real command that lifts it');
     assert.match(why, /synchrobuilder status/, 'and the real command that shows who is on what');
   });
 
   await t.test('releasing the claim lifts the block immediately', () => {
-    assert.equal(run(A, 'release', 'src/api.ts').code, 0);
-    assert.equal((preEdit(B, 'sid-b', 'src/api.ts').stdout || '').trim(), '', 'nothing held, nothing said');
+    assert.equal(run(A, 'claim', 'src/released.ts').code, 0);
+    assert.ok(parse(preEdit(B, 'sid-b', 'src/released.ts')), 'held, so it is refused or warned about');
+    assert.equal(run(A, 'release', 'src/released.ts').code, 0);
+    assert.equal((preEdit(B, 'sid-b', 'src/released.ts').stdout || '').trim(), '', 'released, so nothing is said');
   });
 
   await t.test('a sibling whose session has ended warns but never blocks', () => {
-    assert.equal(run(A, 'claim', 'src/api.ts').code, 0);
+    assert.equal(run(A, 'claim', 'src/stale.ts').code, 0);
     assert.equal(hookRun(A, 'session-end', { hook_event_name: 'SessionEnd', reason: 'clear' }, 'sid-a').code, 0);
-    const r = preEdit(B, 'sid-b', 'src/api.ts');
+    const r = preEdit(B, 'sid-b', 'src/stale.ts');
     const out = parse(r);
     assert.ok(out, explain('stale claim produced nothing', r));
     assert.ok(!('permissionDecision' in out.hookSpecificOutput),
