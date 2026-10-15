@@ -26,7 +26,7 @@ node plugins/synchrobuilder/bin/synchrobuilder.mjs audit --strict
 
 245 tests, 244 passing and 1 skipped. The CI matrix runs them on ubuntu, macos and
 windows, on Node 20 and Node 24, plus a Windows job that checks the repository out with
-CRLF line endings. Every job passed on 2026-09-18
+CRLF line endings. Every job passed on 2026-09-18, and again on 2026-10-15 with the worker and lock tests added
 (`https://github.com/RyanNorouzi/synchrobuilder/actions`). Two real bugs were found by
 that first run and fixed: an integration test that planted a file which silenced the
 very rule it was testing on case-sensitive file systems, and Windows 8.3 short paths
@@ -56,7 +56,7 @@ runs on the Linux CI job.
 | Transport | Publish and pull between two developers over a real bare git remote, and an unreachable remote that queues locally and recovers. Force-push survival, a poisoned ref and a mirror push that deletes the namespace are **not covered**; see Not verified. | `tests/e2e/multiplayer.test.mjs` |
 | Worker mutual exclusion | One worker per remote: a live holder keeps the lock, a dead holder is taken over, a non-owner can neither heartbeat nor release, `runWorker` refuses to start beside a live worker, and a worker whose lock is taken over mid-run stops instead of publishing beside the new holder | `tests/unit/lock.test.mjs` |
 | Worker wake-ups | A kick that lands while a tick is still running wakes the worker immediately instead of being swallowed for a whole interval | `tests/unit/lock.test.mjs` |
-| The detached worker, end to end | A session start spawns a real detached worker that takes the lock and publishes to the remote; a second worker refuses to start beside it; the other developer's worker pulls the claim; the session ends and the worker finishes a last tick, delivers that final claim and exits releasing its lock; neither repository is written to | `tests/e2e/worker.test.mjs` |
+| The detached worker, end to end | A session start spawns a real detached worker that takes the lock and publishes to the remote; a second worker refuses to start beside it; the other developer's worker pulls the claim; the session ends and the worker finishes a last tick, delivers that final claim and exits releasing its lock; neither repository is written to. Green on ubuntu, macOS and Windows, Node 20 and 24, on 2026-10-15 | `tests/e2e/worker.test.mjs` |
 | Multiplayer end to end | Two developers, one bare remote, no Claude: presence, a claim producing a collision warning, a message round trip, a handoff reaching the other developer's digest, offline queueing and recovery, and neither repository touched | `tests/e2e/multiplayer.test.mjs` |
 
 ## Verified by running the real Claude Code CLI
@@ -145,7 +145,6 @@ Nothing below is claimed anywhere as working.
 
 | What | Why not | How it gets verified |
 | :-- | :-- | :-- |
-| The detached background worker on Windows and Linux | `tests/e2e/worker.test.mjs` covers it and has been run on macOS. The same test runs on the Windows and ubuntu CI jobs; until that matrix has gone green with this file in it, only the macOS result is claimed | The existing CI matrix, with this test in it |
 | The `ask` permission prompt | Interactive only | Manual pass before release |
 | The status line as Claude Code renders it | Interactive only | Manual pass before release |
 | Plugin monitors | Experimental and interactive only; Synchrobuilder treats them as an optional accelerator and does not ship one yet | Manual pass, if the feature is adopted |
