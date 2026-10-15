@@ -31,7 +31,7 @@ function findChrome() {
 const card = ({ width, height, body }) => `<!doctype html><html><head><meta charset="utf-8"><style>
   @font-face { font-family: 'Bricolage'; src: url('fonts/BricolageGrotesque-latin.woff2') format('woff2'); font-weight: 500 800; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { width: ${width}px; height: ${height}px; background: #0f1b19; color: #e7efec;
+  body { width: ${width}px; height: ${height}px; background: #16150f; color: #e9e6dc;
          font-family: 'Bricolage', system-ui, sans-serif; display: flex; overflow: hidden; }
   ${body}
 </style></head><body>${body.includes('.card') ? '' : ''}<div class="card"></div></body></html>`;
@@ -40,20 +40,20 @@ const og = `<!doctype html><html><head><meta charset="utf-8"><style>
 @font-face { font-family: 'Bricolage'; src: url('fonts/BricolageGrotesque-latin.woff2') format('woff2'); font-weight: 500 800; font-display: block; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: 1200px; height: 630px; }
-body { background: #0f1b19; color: #e7efec; font-family: 'Bricolage', system-ui, -apple-system, sans-serif;
+body { background: #16150f; color: #e9e6dc; font-family: 'Bricolage', system-ui, -apple-system, sans-serif;
        padding: 72px 80px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
 .mark { display: flex; align-items: center; gap: 18px; }
 .mark svg { width: 64px; height: 38px; }
 .mark span { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; }
 h1 { font-size: 78px; font-weight: 800; line-height: 1.02; letter-spacing: -0.03em; max-width: 17ch; }
-h1 em { font-style: normal; color: #3fcdb4; }
-.cmd { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 30px; color: #8ce6d5;
-       background: rgba(63,205,180,0.10); border: 1px solid rgba(63,205,180,0.32); border-radius: 10px;
+h1 em { font-style: normal; color: #4fd1b8; }
+.cmd { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 30px; color: #8ee8d6;
+       background: rgba(79,209,184,0.10); border: 1px solid rgba(79,209,184,0.32); border-radius: 10px;
        padding: 16px 24px; display: inline-block; }
-.foot { display: flex; justify-content: space-between; align-items: flex-end; font-size: 24px; color: #8ea39d; }
+.foot { display: flex; justify-content: space-between; align-items: flex-end; font-size: 24px; color: #8d8979; }
 </style></head><body>
 <div class="mark">
-  <svg viewBox="0 0 34 20"><circle cx="5" cy="10" r="4" fill="#3fcdb4"/><circle cx="29" cy="10" r="4" fill="#3fcdb4"/><path d="M9 10h16" stroke="#3fcdb4" stroke-width="2" stroke-dasharray="3 3" fill="none"/></svg>
+  <svg viewBox="0 0 34 20"><circle cx="5" cy="10" r="4" fill="#4fd1b8"/><circle cx="29" cy="10" r="4" fill="#4fd1b8"/><path d="M9 10h16" stroke="#4fd1b8" stroke-width="2" stroke-dasharray="3 3" fill="none"/></svg>
   <span>Synchrobuilder</span>
 </div>
 <h1>Multiplayer Claude Code for teams on <em>any laptop</em>.</h1>
@@ -65,9 +65,9 @@ h1 em { font-style: normal; color: #3fcdb4; }
 
 const icon = `<!doctype html><html><head><meta charset="utf-8"><style>
 * { margin:0; padding:0 } html,body { width:180px; height:180px }
-body { background:#0f1b19; display:flex; align-items:center; justify-content:center; border-radius:40px; }
+body { background:#16150f; display:flex; align-items:center; justify-content:center; border-radius:40px; }
 svg { width:120px; height:70px }
-</style></head><body><svg viewBox="0 0 34 20"><circle cx="5" cy="10" r="4" fill="#3fcdb4"/><circle cx="29" cy="10" r="4" fill="#3fcdb4"/><path d="M9 10h16" stroke="#3fcdb4" stroke-width="2" stroke-dasharray="3 3" fill="none"/></svg></body></html>`;
+</style></head><body><svg viewBox="0 0 34 20"><circle cx="5" cy="10" r="4" fill="#4fd1b8"/><circle cx="29" cy="10" r="4" fill="#4fd1b8"/><path d="M9 10h16" stroke="#4fd1b8" stroke-width="2" stroke-dasharray="3 3" fill="none"/></svg></body></html>`;
 
 const chrome = findChrome();
 if (!chrome) {

@@ -33,6 +33,9 @@ const PAGES = [
   { id: 'security', file: 'security.html', out: 'security.html', nav: 'Security' },
   { id: 'pricing', file: 'pricing.html', out: 'pricing.html', nav: 'Pricing' },
   { id: 'manifest', file: 'manifest.html', out: 'manifest.html', nav: 'Manifest' },
+  // GitHub Pages serves 404.html for any unmatched path. It is deliberately kept
+  // out of the navigation, the sitemap and the single-file preview.
+  { id: '404', file: '404.html', out: '404.html', nav: 'Not found', hidden: true },
 ];
 
 const read = (p) => fs.readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
@@ -111,6 +114,9 @@ function pluginVersion() {
 const partial = (name) => read(path.join(src, 'partials', name + '.html'));
 const css = read(path.join(src, 'styles.css'));
 const js = read(path.join(src, 'site.js'));
+// Lenis is committed under site/src/vendor rather than fetched from a CDN, so a
+// visitor's browser never contacts a third party. See vendor/LICENSE-lenis.txt.
+const lenis = read(path.join(src, 'vendor', 'lenis.min.js'));
 
 const pages = PAGES.map((p) => {
   let raw = read(path.join(src, 'pages', p.file));
@@ -124,7 +130,7 @@ const pages = PAGES.map((p) => {
 });
 
 function navHtml(activeId) {
-  return pages.filter((p) => p.id !== 'home').map((p) => `<a href="${hrefFor(p.id)}"${!single && p.id === activeId ? ' aria-current="page"' : ''}>${esc(p.nav)}</a>`).join('\n      ');
+  return pages.filter((p) => p.id !== 'home' && !p.hidden).map((p) => `<a href="${hrefFor(p.id)}"${!single && p.id === activeId ? ' aria-current="page"' : ''}>${esc(p.nav)}</a>`).join('\n      ');
 }
 
 /** Structured data: describe the software on the home page, and the page's place in the site elsewhere. */
@@ -162,9 +168,11 @@ function shell(page, inner) {
 if (!single) {
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(path.join(outDir, 'fonts'), { recursive: true });
+  fs.mkdirSync(path.join(outDir, 'vendor'), { recursive: true });
   fs.writeFileSync(path.join(outDir, 'styles.css'), css);
   fs.writeFileSync(path.join(outDir, 'site.js'), js);
   for (const f of fs.readdirSync(path.join(src, 'fonts'))) fs.copyFileSync(path.join(src, 'fonts', f), path.join(outDir, 'fonts', f));
+  for (const f of fs.readdirSync(path.join(src, 'vendor'))) fs.copyFileSync(path.join(src, 'vendor', f), path.join(outDir, 'vendor', f));
   // GitHub Pages reads CNAME from the published root to serve the custom domain.
   const cname = path.join(src, 'CNAME');
   if (fs.existsSync(cname)) fs.copyFileSync(cname, path.join(outDir, 'CNAME'));
@@ -179,7 +187,7 @@ if (!single) {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(fullTitle)}</title>
 <meta name="description" content="${esc(page.description)}">
-<link rel="canonical" href="${esc(url)}">
+${page.hidden ? '<meta name="robots" content="noindex">' : `<link rel="canonical" href="${esc(url)}">`}
 <meta name="color-scheme" content="light dark">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="${esc(SITE.name)}">
@@ -198,17 +206,18 @@ if (!single) {
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="styles.css">
 <script type="application/ld+json">${jsonLd(page, url)}</script>
+<script defer src="vendor/lenis.min.js"></script>
 <script defer src="site.js"></script>
 </head>
 <body>
-${shell(page, `<div class="page" id="page-${page.id}">\n${page.id === 'home' ? '' : `<h1 class="visually-hidden">${esc(page.title)}</h1>\n`}${page.content}\n</div>`)}
+${shell(page, `<div class="page" id="page-${page.id}">\n${page.id === 'home' || /<h1[\s>]/.test(page.content) ? '' : `<h1 class="visually-hidden">${esc(page.title)}</h1>\n`}${page.content}\n</div>`)}
 </body>
 </html>
 `;
     fs.writeFileSync(path.join(outDir, page.out), doc);
   }
   const today = new Date().toISOString().slice(0, 10);
-  const urls = pages.map((p) => `  <url>\n    <loc>${SITE.origin}/${p.out === 'index.html' ? '' : p.out}</loc>\n    <lastmod>${today}</lastmod>\n    <priority>${p.id === 'home' ? '1.0' : p.id === 'install' ? '0.9' : '0.7'}</priority>\n  </url>`).join('\n');
+  const urls = pages.filter((p) => !p.hidden).map((p) => `  <url>\n    <loc>${SITE.origin}/${p.out === 'index.html' ? '' : p.out}</loc>\n    <lastmod>${today}</lastmod>\n    <priority>${p.id === 'home' ? '1.0' : p.id === 'install' ? '0.9' : '0.7'}</priority>\n  </url>`).join('\n');
   fs.writeFileSync(path.join(outDir, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
   fs.writeFileSync(path.join(outDir, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitemap: ${SITE.origin}/sitemap.xml\n`);
   for (const asset of ['favicon.svg', 'apple-touch-icon.png', 'og-image.png']) {
@@ -220,7 +229,7 @@ ${shell(page, `<div class="page" id="page-${page.id}">\n${page.id === 'home' ? '
   const fontPath = path.join(src, 'fonts', 'BricolageGrotesque-latin.woff2');
   const fontUri = 'data:font/woff2;base64,' + fs.readFileSync(fontPath).toString('base64');
   const cssInline = css.replace('url("fonts/BricolageGrotesque-latin.woff2")', `url("${fontUri}")`);
-  const inner = pages.map((p) => `<section class="page${p.id === 'home' ? ' is-active' : ''}" id="page-${p.id}" aria-label="${esc(p.nav)}">\n${p.content}\n</section>`).join('\n');
+  const inner = pages.filter((p) => !p.hidden).map((p) => `<section class="page${p.id === 'home' ? ' is-active' : ''}" id="page-${p.id}" aria-label="${esc(p.nav)}">\n${p.content}\n</section>`).join('\n');
   const doc = `<title>Synchrobuilder</title>
 <style>
 ${cssInline}
@@ -230,6 +239,9 @@ ${cssInline}
 <div class="single" data-mode="single">
 ${shell({ id: 'home' }, inner)}
 </div>
+<script>
+${lenis}
+</script>
 <script>
 ${js.replace("document.body.getAttribute('data-mode') === 'single'", "document.querySelector('.single') !== null")}
 </script>

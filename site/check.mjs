@@ -15,7 +15,8 @@ for (const f of fs.readdirSync(dist).filter((n) => n.endsWith('.html') && n !== 
   need(/<main id="main">/, 'missing <main id="main">');
   need(/<h1[\s>]/, 'missing <h1>');
   need(/<nav class="site-nav" aria-label/, 'missing labelled nav');
-  need(/<link rel="canonical" href="https:\/\/synchrobuilder\.com/, 'missing canonical link');
+  if (f === '404.html') need(/<meta name="robots" content="noindex">/, 'the 404 page must be noindex');
+  else need(/<link rel="canonical" href="https:\/\/synchrobuilder\.com/, 'missing canonical link');
   need(/<meta property="og:title"/, 'missing Open Graph title');
   need(/<meta property="og:image" content="[^"]+og-image\.png"/, 'missing Open Graph image');
   need(/<meta name="twitter:card" content="summary_large_image"/, 'missing Twitter card');
@@ -42,7 +43,7 @@ for (const required of ['robots.txt', 'sitemap.xml', 'og-image.png', 'favicon.sv
   if (!fs.existsSync(path.join(dist, required))) problems.push(`missing ${required}`);
 }
 const sitemap = fs.existsSync(path.join(dist, 'sitemap.xml')) ? fs.readFileSync(path.join(dist, 'sitemap.xml'), 'utf8') : '';
-for (const f of fs.readdirSync(dist).filter((n) => n.endsWith('.html') && n !== 'preview.html')) {
+for (const f of fs.readdirSync(dist).filter((n) => n.endsWith('.html') && n !== 'preview.html' && n !== '404.html')) {
   const loc = f === 'index.html' ? 'https://synchrobuilder.com/' : `https://synchrobuilder.com/${f}`;
   if (!sitemap.includes(loc)) problems.push(`sitemap.xml does not list ${loc}`);
 }

@@ -1,95 +1,120 @@
 <!-- page: home | title: Synchrobuilder: multiplayer, cross-platform Claude Code | description: An open source Claude Code plugin that finds the code that breaks on Linux or Windows, and lets each teammate's Claude see what the others touch. | ogTitle: Multiplayer Claude Code that runs on any laptop | ogDescription: Portability audits plus team presence for Claude Code. No server, no account, MIT licensed, one command to install. -->
 <div class="wrap">
   <section class="hero" aria-labelledby="pitch">
-    <p class="eyebrow">A Claude Code plugin · MIT · macOS, Windows, Linux</p>
-    <h1 id="pitch">Multiplayer Claude Code for teams on any laptop.</h1>
-    <p class="lede">No server, safe by design. Synchrobuilder keeps your project running on all three operating systems while Claude writes code, and lets several developers work in one repo at the same time, each Claude aware of what the others are doing. It uses the git remote you already have.</p>
-    <div class="hero-meta">
-      <span>Nothing to host</span>
-      <span>Plain Node, no dependencies</span>
-      <span>Fails open: it can never stop you coding</span>
+    <div class="hero-top">
+      <div>
+        <p class="recordline">
+          <span>Claude Code plugin</span>
+          <span><b>v0.1.0</b></span>
+          <span>MIT</span>
+        </p>
+        <h1 id="pitch">Multiplayer Claude Code for teams on any laptop.</h1>
+      </div>
+      <div class="hero-body">
+        <p>Synchrobuilder does two jobs at once. It keeps a project running on macOS, Windows and Linux while Claude writes code, catching the import casing and the Unix-only script before they reach a teammate's machine.</p>
+        <p>And it lets several developers work in one repository at the same time, each with their own Claude, each aware of what the others are touching. Presence travels through the git remote you already have, so there is nothing to host and no account to create.</p>
+      </div>
     </div>
+
+    <dl class="facts" data-reveal-block>
+      <div><dt>Test suite</dt><dd>223 <small>222 pass, 1 skipped</small></dd></div>
+      <div><dt>CI matrix</dt><dd>8 <small>jobs, three operating systems</small></dd></div>
+      <div><dt>Hook cost</dt><dd>21–26 <small>ms per hook, on macOS</small></dd></div>
+      <div><dt>Dependencies</dt><dd>0 <small>plain Node, no build step</small></dd></div>
+    </dl>
   </section>
 </div>
 
 <div class="wrap">
-  <section class="install" aria-labelledby="install-title">
+  <section class="install" aria-labelledby="install-title" data-reveal-block>
     <div class="install-head">
       <span class="eyebrow" id="install-title">Install · one command</span>
-      <span class="pill pill--ok">works now</span>
+      <span class="pill pill--ok">published</span>
     </div>
     <div class="cmd"><code>npx synchrobuilder@latest install</code><button class="copy" type="button">Copy</button></div>
-    <div class="install-foot">It shows you the two Claude Code commands it will run, asks, then runs them. <code>--uninstall</code> reverses it. Prefer to run them yourself? They are <code>/plugin marketplace add RyanNorouzi/synchrobuilder</code> then <code>/plugin install synchrobuilder@synchrobuilder</code>.</div>
+    <div class="install-foot">It prints the two Claude Code commands it is about to run, asks, then runs them. <code>--uninstall</code> reverses it, and running it twice changes nothing the second time.</div>
     <div class="install-head">
       <span class="eyebrow">Or inside Claude Code · two commands</span>
-      <span class="pill pill--ok">works now</span>
+      <span class="pill pill--ok">published</span>
     </div>
-    <div class="cmd"><code><span class="step">1</span>/plugin marketplace add RyanNorouzi/synchrobuilder</code><button class="copy" type="button">Copy</button></div>
-    <div class="cmd"><code><span class="step">2</span>/plugin install synchrobuilder@synchrobuilder</code><button class="copy" type="button">Copy</button></div>
-    <div class="install-foot">These two were run on macOS against the public repository and are what the one-liner runs for you. Full steps, prerequisites and per-OS troubleshooting are on the <a href="install.html">Install page</a>.</div>
+    <div class="cmd"><code class="noprompt"><span class="step">1</span>/plugin marketplace add RyanNorouzi/synchrobuilder</code><button class="copy" type="button">Copy</button></div>
+    <div class="cmd"><code class="noprompt"><span class="step">2</span>/plugin install synchrobuilder@synchrobuilder</code><button class="copy" type="button">Copy</button></div>
+    <div class="install-foot">Needs Claude Code, Node.js 20 or newer on <code>PATH</code>, and git. Prerequisites and per-OS troubleshooting are on the <a href="install.html">Install page</a>.</div>
   </section>
 </div>
 
 <div class="wrap">
-  <div class="video-slot" role="img" aria-label="Placeholder for the demo video">
-    <div>
-      <span class="eyebrow">Placeholder</span>
-      <p>A 60-second demo on macOS, Windows and Linux goes here once CI has run on all three. Nothing is recorded yet. In the meantime, <code>node scripts/demo.mjs</code> sets up two developers on one machine and prints a two-terminal walkthrough.</p>
+  <section aria-labelledby="pillars-title">
+    <h2 id="pillars-title" class="visually-hidden">The two halves</h2>
+    <div class="pillars" data-reveal-group>
+      <article class="pillar">
+        <span class="pillar-no">01 · Portability</span>
+        <h3>Code that runs on the other two operating systems</h3>
+        <p>Twelve rules. Four of them have a fixer; the rest are reported with the change to make by hand.</p>
+        <ul>
+          <li><b>Audit</b> reports import casing, Unix-only scripts, hardcoded paths, line endings, Windows-illegal filenames, native binaries and one-OS instructions.</li>
+          <li><b>Fix</b> covers import casing, line endings, hardcoded paths and Unix-only scripts, and shows every change as a diff before applying it.</li>
+          <li><b>A guard</b> re-reads each file Claude edits and warns it in the same turn when the edit just broke another platform.</li>
+          <li><b>Manifest, setup, doctor and a CI generator</b> record what the project needs, plan the install for this machine, name what differs, and write a three-OS workflow.</li>
+        </ul>
+      </article>
+      <article class="pillar">
+        <span class="pillar-no">02 · Multiplayer</span>
+        <h3>Each Claude knows what the other developers are doing</h3>
+        <p>One small git ref per person. Nothing merges, nothing is hosted, nothing is signed up for.</p>
+        <ul>
+          <li><b>A session digest</b> on start: who is active, which claims touch your files, messages for you, handoffs since you left.</li>
+          <li><b>Collision warnings</b> before an edit, at most once per file every thirty minutes, never blocking.</li>
+          <li><b>Claims, messages, a task board and structured handoffs</b> built from what your session already records.</li>
+          <li><b>Offline is normal.</b> Work queues locally and reaches the team on the next successful push.</li>
+        </ul>
+      </article>
     </div>
-  </div>
+  </section>
 </div>
 
 <div class="wrap">
-  <h2 class="visually-hidden">What it does</h2>
-  <section class="cards" aria-label="What it does">
-    <article class="card">
-      <span class="eyebrow">Run anywhere</span>
-      <h3>Portability, kept honest by CI</h3>
-      <ul>
-        <li>Audit finds OS-specific assumptions: import casing, Unix-only scripts, hardcoded paths, line endings, Windows-illegal names, native binaries, one-OS READMEs.</li>
-        <li>Fix proposes each change as a diff and applies it only when you say so.</li>
-        <li>A guard re-audits every file Claude edits and tells it, in the same turn, if it just broke another OS.</li>
-        <li>A manifest, setup, doctor and a three-OS GitHub Actions workflow get a teammate from clone to passing health check.</li>
-      </ul>
-    </article>
-    <article class="card">
-      <span class="eyebrow">Stay in sync</span>
-      <h3>Presence over your git remote</h3>
-      <ul>
-        <li>Each developer publishes their own small state ref; nobody merges anything and nobody hosts anything.</li>
-        <li>Session start injects a short digest: who is active, claims that touch your area, messages for you, handoffs since you left.</li>
-        <li>Claims and collision warnings before an edit, at most once per file per 30 minutes, never blocking.</li>
-        <li>Notify, a minimal task board, and structured handoffs built from local session events.</li>
-      </ul>
-    </article>
-    <article class="card">
-      <span class="eyebrow">Safe by design</span>
-      <h3>Trust is earned by the code</h3>
-      <ul>
-        <li>Every hook exits cleanly with no output on any internal error and logs locally. Offline or slow, you keep coding.</li>
-        <li>Only handle, branch, a 140-character task summary, repo-relative paths, short messages and handoff notes ever leave your machine, after secret redaction.</li>
-        <li>Anything from another machine is wrapped as untrusted data that Claude is told not to follow as instructions.</li>
-        <li>Anything that changes your machine shows the plan first and asks before each step. No silent sudo.</li>
-      </ul>
-    </article>
+  <section class="trust" aria-labelledby="trust-title">
+    <div class="trust-head">
+      <h2 id="trust-title">The floor it will not go below</h2>
+      <p>These four hold whether the network is up, whether a teammate is hostile, and whether Synchrobuilder itself is working.</p>
+    </div>
+    <dl class="trust-list" data-reveal-group>
+      <div>
+        <dt>Never blocks you</dt>
+        <dd>Every hook exits cleanly with no output on any internal error and writes the detail to a local log. Offline, slow or broken, you keep coding.</dd>
+      </div>
+      <div>
+        <dt>Never sends your code</dt>
+        <dd>Only a handle, a branch name, a task summary of at most 140 characters, repo-relative paths, short messages and handoff notes leave the machine, all after secret redaction. Never prompts, transcripts, file contents, diffs or environment variable values.</dd>
+      </div>
+      <div>
+        <dt>Treats teammates as untrusted</dt>
+        <dd>Text arriving from another machine is sanitised and wrapped in a labelled block that tells Claude it is data, not instructions. Identity is a claim, not authentication.</dd>
+      </div>
+      <div>
+        <dt>Asks before it changes anything</dt>
+        <dd>Anything that touches your machine shows the full plan and asks before each step, with exact versions pinned. No silent sudo.</dd>
+      </div>
+    </dl>
   </section>
 </div>
 
 <div class="wrap">
   <section class="section" aria-labelledby="real-title">
     <div class="rail">
-      <h2 id="real-title">What is real today</h2>
-      <p>This site never claims more than a test or a recorded run in the repository proves.</p>
+      <h2 id="real-title">What is actually proven</h2>
+      <p>This site claims nothing that a test or a recorded run in the repository does not already show.</p>
     </div>
     <div class="content">
       <div class="measure">
-        <p>The plugin is built. Both pillars work and 223 tests pass on macOS: the portability audit with twelve rules, the fixers, the guard hook, the setup manifest with <code>init</code>, <code>setup</code>, <code>doctor</code> and the CI generator, and the whole multiplayer path over a real git remote.</p>
-        <p>Proven by a test or a recorded run: two developers on one machine with one bare remote see each other's presence, get a collision warning from a claim, exchange a message and receive a handoff, with neither repository touched; a live Claude Code session quotes the guard's note back in the same turn it made the edit; a missing <code>node</code> never blocks a session; hooks cost 21 to 26 ms end to end here.</p>
-        <p>Not verified yet: anything on Windows or Linux, which the CI matrix covers on the first push; installing through a marketplace; the permission prompt and status line as the terminal renders them; and custom git refs on hosted providers. The full ledger is <code>docs/VERIFICATION.md</code>.</p>
+        <p>Both halves are built and shipped. The suite is 223 tests, 222 passing and 1 skipped, and the CI matrix runs it on ubuntu, macOS and Windows across Node 20 and Node 24, plus a Windows job that checks the repository out with CRLF line endings and a job that validates both manifests under <code>--strict</code>. All eight pass.</p>
+        <p>Proven by a test or a recorded run: two developers on one machine against one bare remote see each other's presence, raise a collision warning from a claim, exchange a message and receive a handoff, with neither working copy touched; a live Claude Code session quotes the guard's note back in the same turn it made the edit; a missing <code>node</code> leaves the session working and the plugin silent; and a claim made while the remote is unreachable queues locally and arrives once it is back.</p>
+        <p>Still unverified, and so claimed nowhere: the detached worker outliving a session on Windows and Linux, the permission prompt and the status line as a terminal renders them, plugin monitors, custom refs on GitLab, Bitbucket and Azure DevOps, branch protection rules refusing the state ref, the bare <code>/audit</code> short form in the command menu, and resolving package managers without a shell on Windows. The full ledger is <a href="https://github.com/RyanNorouzi/synchrobuilder/blob/main/docs/VERIFICATION.md">docs/VERIFICATION.md</a>, and a pull request that adds a capability adds its row there or the claim does not ship.</p>
       </div>
-      <div class="term" aria-label="Recorded terminal output">
-        <div class="term-bar"><span class="os"><span data-on>macOS</span><span>Windows</span><span>Linux</span></span><span class="title">real output · 2026-09-18 · claude 2.1.218</span></div>
-<pre><span class="c">$</span> claude plugin validate plugins/synchrobuilder
+      <div class="term" aria-label="Recorded terminal output" data-reveal-block>
+        <div class="term-bar"><span class="os"><span data-on>macOS</span><span>Windows</span><span>Linux</span></span><span class="title">recorded run · macOS · claude 2.1.218</span></div>
+<pre><span class="c">$</span> claude plugin validate plugins/synchrobuilder --strict
 Validating plugin manifest: …/plugins/synchrobuilder/.claude-plugin/plugin.json
 
 <span class="a">✔ Validation passed</span>
@@ -101,7 +126,7 @@ PROMPT
 PREEDIT
 POSTEDIT</span></pre>
       </div>
-      <p class="muted">The four tokens are markers the experiment hooks injected from SessionStart, UserPromptSubmit, PreToolUse and PostToolUse; Claude listing them proves the hook context arrived. The full experiment log is in <code>docs/research/experiments.md</code>.</p>
+      <p class="muted">Those four tokens are markers the experiment hooks injected from SessionStart, UserPromptSubmit, PreToolUse and PostToolUse. Claude listing them back is what proves the hook context arrived. The full experiment log is in <code>docs/research/experiments.md</code>.</p>
     </div>
   </section>
 </div>
