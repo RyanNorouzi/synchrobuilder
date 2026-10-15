@@ -3,7 +3,7 @@
   <section class="section" aria-labelledby="transport-title">
     <div class="rail">
       <h2 id="transport-title">The transport</h2>
-      <p>One small ref per developer and device on the git remote you already have. Nothing to host.</p>
+      <p>One small ref per working tree on the git remote you already have. Nothing to host.</p>
     </div>
     <div class="content">
       <div class="note"><span class="eyebrow">Status</span>This is how the shipped transport works, with the rationale in ADR-001, ADR-003 and ADR-005. The end-to-end transport and multiplayer tests exercise it against a real bare remote; the hosted-provider gaps are named at the end of this section.</div>
@@ -40,8 +40,8 @@
             <text x="798" y="332" text-anchor="middle">hidden bare repo</text>
             <text x="798" y="352" text-anchor="middle" fill="var(--muted)" font-size="11">~/.synchrobuilder/remotes/&lt;key&gt;/state.git</text>
             <text x="480" y="148" text-anchor="middle" font-weight="700">your existing git remote</text>
-            <text x="480" y="192" text-anchor="middle" font-size="11">refs/synchrobuilder/v1/alice/&lt;device&gt;</text>
-            <text x="480" y="214" text-anchor="middle" font-size="11">refs/synchrobuilder/v1/bob/&lt;device&gt;</text>
+            <text x="480" y="192" text-anchor="middle" font-size="11">refs/synchrobuilder/v1/alice/&lt;device&gt;/&lt;seat&gt;</text>
+            <text x="480" y="214" text-anchor="middle" font-size="11">refs/synchrobuilder/v1/bob/&lt;device&gt;/&lt;seat&gt;</text>
             <text x="480" y="250" text-anchor="middle" fill="var(--muted)" font-size="11">one parentless snapshot commit per ref</text>
             <text x="480" y="284" text-anchor="middle" fill="var(--accent)" font-weight="700">no server</text>
             <text x="334" y="330" text-anchor="middle" font-size="11">push own ref</text>
@@ -68,7 +68,7 @@
         </svg>
       </div>
       <div class="measure">
-        <p>Each developer and device publishes exactly one ref on the team's remote: <code>refs/synchrobuilder/v1/&lt;handle&gt;/&lt;device&gt;</code>. The handle is a short name matched from your git email through the committed team file (ADR-002); the device id is a random 8-hex value made once per machine and stored locally, never the hostname. The tip of that ref is always a parentless snapshot commit whose tree holds only that writer's files: presence, claims, board entries, contract alerts, messages, handoffs and a small manifest that readers check against the ref name.</p>
+        <p>Each working tree publishes exactly one ref on the team's remote: <code>refs/synchrobuilder/v1/&lt;handle&gt;/&lt;device&gt;/&lt;seat&gt;</code>. The handle is a short name matched from your git email through the committed team file (ADR-002); the device id is a random 8-hex value made once per machine and stored locally, never the hostname; the seat identifies one working tree, so two agents in two worktrees of the same clone are two participants rather than one. Refs published before seats existed have two segments and are still read. The tip of that ref is always a parentless snapshot commit whose tree holds only that writer's files: presence, claims, board entries, contract alerts, messages, handoffs and a small manifest that readers check against the ref name.</p>
         <p>There are no merges, ever. The writer builds each snapshot with git plumbing (<code>hash-object</code>, <code>mktree</code>, <code>commit-tree</code>) and pushes with <code>--force-with-lease</code>, never bare <code>--force</code>. It never reads anyone else's state before writing, so nothing a teammate pushes can stop you publishing. Every commit message starts with <code>[skip ci]</code>. A custom ref namespace stays out of branch lists, and the design expects it to sit outside branch rulesets. GitHub's reference API documentation accepts any name that starts with <code>refs/</code> and has two slashes. GitHub accepts the namespace: a hosted check on 2026-09-18 passed 11 of 11, including the ref staying out of <code>git branch -a</code> and triggering no workflow run. GitLab, Bitbucket and Azure DevOps have not been tested, and a repository-wide ruleset refusing the state ref has not been tried.</p>
         <p>The fallback ladder: if a host rejects the custom namespace, the plugin falls back to branches under <code>refs/heads/synchrobuilder/v1/</code> in fast-forward append mode, with <code>[skip ci]</code> and <code>-o ci.skip</code> on every push. If that is rejected too, it goes read-only (fetch only) or local-only and records the server's reason so the digest can say why publishing is blocked. The branch-mode fallback was exercised against GitHub; a provider actually rejecting the namespace has not been observed, because no provider did.</p>
         <p>All git work happens in a hidden bare repository under <code>~/.synchrobuilder/remotes/&lt;sha256 of the normalized remote URL&gt;/state.git</code>, run by a detached Node worker. Your own <code>.git</code> is never written to, and your branches and working tree are never touched. The worker fetches every 45 seconds plus up to 15 seconds of jitter, and pushes only when your state changed or 60 seconds passed. Important events (a claim, a release, a message, a board change, a handoff, a closed session) trigger a sync tick within about a second. Credentials come from your global git configuration only; git is spawned as an argument list with no shell and with per-call timeouts.</p>
