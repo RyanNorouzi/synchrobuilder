@@ -10,9 +10,14 @@ import { sanitizeLine } from '../safety/sanitize.mjs';
 import { logLine } from '../core/log.mjs';
 import { nowMs, readIdentity, snapshotFromCtx, teammates, claimActive, claimAgeMs, coversPath, samePath, repoRelativePath, fmtAgo, hhmmZ, MS } from './common.mjs';
 import { renderBudgeted } from './budget.mjs';
+import { withSiblings } from './siblings.mjs';
 
 const EDIT_WINDOW_MS = 30 * MS.minute;
 const NEVER_ASK = new Set(['dontAsk', 'bypassPermissions', 'plan']);
+// A deny is the one thing ADR-003 says a hook must not do, so it is opt-in and deliberately narrow: only a
+// live sibling on this machine, only when the team asked for it. A writer that arrived over the network can
+// never trigger it, because a remote teammate cannot be confirmed to still be at their desk.
+const BLOCKABLE = (m) => Boolean(m && m.writer && m.writer.local && m.writer.live && m.kind === 'claim');
 const MAX_ENTRIES = 5;
 
 export function editedPath(toolInput) {
@@ -37,9 +42,12 @@ export function findMatches(snapshot, identity, rel, now) {
 }
 
 /** True when this path was warned about inside the window; otherwise records now and returns false. Fails open (no throttle). */
-function throttled(checkoutDir, rel, now, windowMinutes) {
+function throttled(checkoutDir, rel, now, windowMinutes, suffix = '') {
   const file = path.join(checkoutDir, 'warned.json');
-  const key = CASE_INSENSITIVE ? rel.toLowerCase() : rel;
+  // The throttle lives in this seat's own directory, so one agent can no longer consume the warning on behalf
+  // of every other worktree. The suffix separates "a sibling holds this" from "someone remote holds this",
+  // which carry different urgency and different windows.
+  const key = (CASE_INSENSITIVE ? rel.toLowerCase() : rel) + suffix;
   const table = readJson(file, null) || {};
   const last = Date.parse(table[key] || '');
   if (Number.isFinite(last) && now - last < windowMinutes * MS.minute) return true;
@@ -58,15 +66,26 @@ export async function collision(ctx, toolInput) {
   const rel = repoRelativePath(ctx.loc, ctx.cwd, editedPath(toolInput));
   if (!rel) return null;
   const identity = readIdentity(ctx.loc.checkoutDir);
-  const snapshot = snapshotFromCtx(ctx);
-  if (!identity || !snapshot || snapshot.tier === 'gone') return null; // over 24 h only the digest mentions staleness
+  const remote = snapshotFromCtx(ctx);
+  if (!identity) return null;
+  // Siblings are read off this disk, so their claims are current even when the last fetch is old or failed.
+  // That is what makes two agents in two worktrees react to each other in milliseconds instead of a sync
+  // interval. It cannot resurrect a dead remote: anything from another machine still comes via the snapshot.
+  const snapshot = withSiblings(remote, ctx.loc, identity, now);
+  if (!snapshot || (remote && remote.tier === 'gone' && !snapshot.writers.some((w) => w.local))) return null;
   const matches = findMatches(snapshot, identity, rel, now);
   if (!matches.length) return null;
   const config = readConfig(ctx.loc.workTree);
-  if (throttled(ctx.loc.checkoutDir, rel, now, config.collision.windowMinutes)) return null;
+
+  const sibling = matches.find(BLOCKABLE) || null;
+  const windowMinutes = sibling
+    ? Math.min(config.collision.siblingWindowMinutes ?? 2, config.collision.windowMinutes)
+    : config.collision.windowMinutes;
+  if (throttled(ctx.loc.checkoutDir, rel, now, windowMinutes, sibling ? '#sibling' : '')) return null;
 
   const stale = snapshot.tier === 'stale';
-  const ask = config.collision.mode === 'ask' && snapshot.tier === 'fresh' && !NEVER_ASK.has(ctx.permissionMode);
+  const block = config.collision.mode === 'block' && Boolean(sibling);
+  const ask = !block && config.collision.mode === 'ask' && snapshot.tier === 'fresh' && !NEVER_ASK.has(ctx.permissionMode);
   const entries = matches.slice(0, MAX_ENTRIES).map((m) => {
     const p = m.writer.presence || {};
     const lines = [`${verb(m)} ${m.path} ${fmtAgo(m.ageMs)}`];
@@ -81,10 +100,22 @@ export async function collision(ctx, toolInput) {
   const more = matches.length > 1 ? ` and ${matches.length - 1} more` : '';
   const asOf = stale ? ` as of ${hhmmZ(snapshot.fetchedAt)}` : '';
   const output = { hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: result.text } };
-  if (ask) {
+  if (block) {
+    // The only non-advisory path, and it refuses exactly one thing: editing a file that another agent on this
+    // same machine is holding right now. Opt-in through collision.mode, and it names the way out so the agent
+    // can act rather than stall.
+    const w = sibling.writer;
+    const where = w.presence && w.presence.branch ? ` on branch ${w.presence.branch}` : (w.workTree ? ` in ${w.workTree}` : '');
+    output.hookSpecificOutput.permissionDecision = 'deny';
+    output.hookSpecificOutput.permissionDecisionReason =
+      `Synchrobuilder: another agent on this machine is holding ${sibling.path}${where}, claimed ${fmtAgo(sibling.ageMs)}. `
+      + 'Pick different work for now. The hold lifts when that agent runs "synchrobuilder release '
+      + `${sibling.path}" or its session ends. "synchrobuilder status" shows what every agent here is on.`;
+  } else if (ask) {
     output.hookSpecificOutput.permissionDecision = 'ask';
     output.hookSpecificOutput.permissionDecisionReason = `Synchrobuilder: ${top.writer.handle} ${verb(top)} ${top.path} ${fmtAgo(top.ageMs)}${branch}. Editing ${rel} may collide with their work.`;
   }
-  output.systemMessage = `Synchrobuilder: ${top.writer.handle} ${verb(top)} ${top.path} ${fmtAgo(top.ageMs)}${branch}${more}${asOf}`;
+  const who = top.writer.local ? 'another agent here' : top.writer.handle;
+  output.systemMessage = `Synchrobuilder: ${who} ${verb(top)} ${top.path} ${fmtAgo(top.ageMs)}${branch}${more}${asOf}`;
   return output;
 }

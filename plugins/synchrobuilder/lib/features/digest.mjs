@@ -4,6 +4,7 @@
 import { LIMITS } from '../core/schema.mjs';
 import { sanitizeText, sanitizeLine } from '../safety/sanitize.mjs';
 import { nowMs, readIdentity, snapshotFromCtx, teammates, claimActive, claimAgeMs, pathsOverlap, fmtAgo, fmtShortAge, MS } from './common.mjs';
+import { withSiblings } from './siblings.mjs';
 import { readJournalTail, recentEdits } from './journal-write.mjs';
 import { readSeen, writeSeen, messageKey, handoffKey } from './seen.mjs';
 import { activeWriters } from './presence.mjs';
@@ -15,7 +16,10 @@ const withheld = (v) => (v === null || v === undefined || v === '' ? 'withheld' 
 
 function base(writer, kind, extra = {}) {
   const p = writer.presence || {};
-  return { from: writer.handle, kind, ...extra, branch: withheld(p.branch), seen: withheld(writer.firstSeenAt), verified: writer.verified };
+  // `at` tells a reader whether this is another agent on this machine or a teammate somewhere else. Two
+  // agents in two worktrees share a handle, so without it they are indistinguishable in the digest.
+  const at = writer.local ? (writer.live === false ? 'here-idle' : 'here') : 'remote';
+  return { from: writer.handle, kind, ...extra, at, branch: withheld(p.branch), seen: withheld(writer.firstSeenAt), verified: writer.verified };
 }
 
 function claimEntries(others, recent, now) {
@@ -89,7 +93,9 @@ export async function digest(ctx) {
   if (!ctx || !ctx.loc || ctx.muted) return null;
   const now = nowMs(ctx);
   const identity = readIdentity(ctx.loc.checkoutDir);
-  const snapshot = snapshotFromCtx(ctx);
+  // Agents sharing this machine are read off the disk, so a session that starts seconds after a sibling
+  // claimed something still opens knowing about it.
+  const snapshot = withSiblings(snapshotFromCtx(ctx), ctx.loc, readIdentity(ctx.loc.checkoutDir), nowMs(ctx));
   if (!identity || !snapshot) return null;
   const others = teammates(snapshot, identity);
   const seen = readSeen(ctx.loc.checkoutDir);

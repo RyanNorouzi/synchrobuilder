@@ -25,7 +25,7 @@ export function summaryFromBranch(branch) {
   return tail ? clean(tail, LIMITS.task) : '';
 }
 
-function foldClaims(events, now) {
+export function foldClaims(events, now) {
   const open = new Map();
   for (const ev of events) {
     if (ev.type === 'claim') {

@@ -1,13 +1,18 @@
 // Reads the two committed team files. Both are optional; defaults keep everything working in a repo that has neither.
 //   .synchrobuilder/team.json   { version: 1, members: { alice: { name, emails: [] } } }
-//   .synchrobuilder/config.json { version: 1, collision: { mode: 'warn'|'ask', windowMinutes: 30 }, contracts: { paths: [globs] }, audit: { ignore: [globs], strict: false }, transport: { remote: 'origin', namespace: 'custom'|'branch' } }
+//   .synchrobuilder/config.json { version: 1, collision: { mode: 'warn'|'ask'|'block', windowMinutes: 30, siblingWindowMinutes: 2 }, contracts: { paths: [globs] }, audit: { ignore: [globs], strict: false }, transport: { remote: 'origin', namespace: 'custom'|'branch' } }
 import path from 'node:path';
 import { readJson } from './fsx.mjs';
 import { isHandle } from './schema.mjs';
 
+// 'block' refuses the edit, and only ever for a live sibling on this machine. See lib/features/collision.mjs.
+export const COLLISION_MODES = new Set(['warn', 'ask', 'block']);
+
 export const DEFAULT_CONFIG = Object.freeze({
   version: 1,
-  collision: { mode: 'warn', windowMinutes: 30 },
+  // mode: warn (advisory), ask (prompt the human), or block (refuse a same-machine sibling's claimed file).
+  // siblingWindowMinutes is a separate, much shorter throttle: agents work in minutes, not half hours.
+  collision: { mode: 'warn', windowMinutes: 30, siblingWindowMinutes: 2 },
   contracts: { paths: ['**/contracts/**', '**/*.schema.*', '**/openapi.*', '**/prisma/schema.prisma', '**/*.proto', '**/types/**'] },
   audit: { ignore: [], strict: false },
   transport: { remote: 'origin', namespace: 'custom', intervalSeconds: 45 },
@@ -37,8 +42,10 @@ export function readConfig(workTree) {
     transport: merge(DEFAULT_CONFIG.transport, raw.transport),
     seats: merge(DEFAULT_CONFIG.seats, raw.seats),
   };
-  if (cfg.collision.mode !== 'ask') cfg.collision.mode = 'warn';
+  if (!COLLISION_MODES.has(cfg.collision.mode)) cfg.collision.mode = 'warn';
   if (!Number.isInteger(cfg.collision.windowMinutes) || cfg.collision.windowMinutes < 1) cfg.collision.windowMinutes = 30;
+  // 0 is meaningful here: warn on every single attempt, which suits a fleet of agents hammering one tree.
+  if (!Number.isInteger(cfg.collision.siblingWindowMinutes) || cfg.collision.siblingWindowMinutes < 0) cfg.collision.siblingWindowMinutes = 2;
   if (!Array.isArray(cfg.contracts.paths)) cfg.contracts.paths = [...DEFAULT_CONFIG.contracts.paths];
   if (!Array.isArray(cfg.audit.ignore)) cfg.audit.ignore = [];
   return cfg;
