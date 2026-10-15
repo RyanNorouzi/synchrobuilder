@@ -13,6 +13,7 @@ import path from 'node:path';
 import { readJson } from '../core/fsx.mjs';
 import { validClaims, validPresence, isSeat } from '../core/schema.mjs';
 import { liveSessions } from '../state/sessions.mjs';
+import { logLine } from '../core/log.mjs';
 import { readEvents } from '../state/journal.mjs';
 import { foldClaims } from '../state/own.mjs';
 
@@ -53,8 +54,14 @@ export function siblingWriters(loc, identity, now = Date.now()) {
     // the instant a claim is made; own/ is only rewritten on the next worker tick. Reading the journal is what
     // turns "sees it within a sync interval" into "sees it within milliseconds", which is the whole point.
     let claims = [];
-    try { claims = foldClaims(readEvents(seat.checkoutDir), now) || []; }
-    catch { claims = validClaims(readJson(path.join(seat.checkoutDir, 'own', 'claims.json'), null), now) || []; }
+    try {
+      claims = foldClaims(readEvents(seat.checkoutDir), now) || [];
+    } catch (err) {
+      // Falling back to the published copy is correct, but doing it silently once hid a real failure on one
+      // CI platform for a whole run: the warning simply never appeared and nothing said why.
+      logLine('features', `sibling journal fold failed for ${seat.seat}: ${err && err.message}`);
+      claims = validClaims(readJson(path.join(seat.checkoutDir, 'own', 'claims.json'), null), now) || [];
+    }
     if (!presence && !claims.length) continue;
     let live = false;
     try { live = liveSessions(seat.checkoutDir).length > 0; } catch { live = false; }

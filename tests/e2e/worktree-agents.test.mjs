@@ -43,6 +43,21 @@ const preEdit = (cwd, sid, rel) => hookRun(cwd, 'pre-edit', {
   hook_event_name: 'PreToolUse', tool_name: 'Edit', tool_input: { file_path: path.join(cwd, rel) },
 }, sid);
 const parse = (r) => { const t = (r.stdout || '').trim(); return t.startsWith('{') ? JSON.parse(t) : null; };
+/** Everything that might explain a hook that said nothing: its own output, and the plugin's local log. */
+function explain(label, r) {
+  let log = '(no log)';
+  try {
+    const f = path.join(home, 'logs', 'features.log');
+    if (fs.existsSync(f)) log = fs.readFileSync(f, 'utf8').trim().split('\n').slice(-6).join(' | ');
+  } catch { /* diagnostics only */ }
+  const seats = (() => {
+    try { return fs.readdirSync(path.join(locA.remoteDir, 'checkouts')).join(','); } catch { return '(none)'; }
+  })();
+  const journal = (() => {
+    try { return String(fs.readFileSync(path.join(locA.checkoutDir, 'journal.jsonl'), 'utf8').match(/"type":"claim"/g) || []).length; } catch { return 'unreadable'; }
+  })();
+  return `${label}: hook said ${JSON.stringify((r.out || '').slice(0, 300))}; registry=[${seats}]; A journal claim lines=${journal}; log=${log}`;
+}
 const writeConfig = (collision) => {
   for (const wt of [A, B]) {
     fs.mkdirSync(path.join(wt, '.synchrobuilder'), { recursive: true });
@@ -92,8 +107,9 @@ test('two agents in two worktrees of one clone', { skip: !READY && 'plugin not b
   await t.test('a claim reaches the other agent with no sync in between', () => {
     assert.equal(run(A, 'claim', 'src/api.ts').code, 0);
     // No worker call here on purpose: this must work off the shared filesystem alone.
-    const out = parse(preEdit(B, 'sid-b', 'src/api.ts'));
-    assert.ok(out, 'agent B was warned');
+    const r = preEdit(B, 'sid-b', 'src/api.ts');
+    const out = parse(r);
+    assert.ok(out, explain('agent B was not warned', r));
     assert.match(out.systemMessage, /another agent here/, `expected a local-agent warning, got: ${out.systemMessage}`);
     assert.match(out.systemMessage, /agent-a/, 'and it names the branch the holder is on');
     assert.match(out.hookSpecificOutput.additionalContext, /synchrobuilder:begin teammate-data/, 'still wrapped as data');
@@ -112,8 +128,9 @@ test('two agents in two worktrees of one clone', { skip: !READY && 'plugin not b
 
   await t.test('block mode refuses a file a live sibling is holding, and says how it clears', () => {
     writeConfig({ mode: 'block', windowMinutes: 30, siblingWindowMinutes: 0 });
-    const out = parse(preEdit(B, 'sid-b', 'src/api.ts'));
-    assert.ok(out, 'produced a decision');
+    const r = preEdit(B, 'sid-b', 'src/api.ts');
+    const out = parse(r);
+    assert.ok(out, explain('block mode produced nothing', r));
     assert.equal(out.hookSpecificOutput.permissionDecision, 'deny');
     const why = out.hookSpecificOutput.permissionDecisionReason;
     assert.match(why, /another agent on this machine is holding src\/api\.ts/);
@@ -129,8 +146,9 @@ test('two agents in two worktrees of one clone', { skip: !READY && 'plugin not b
   await t.test('a sibling whose session has ended warns but never blocks', () => {
     assert.equal(run(A, 'claim', 'src/api.ts').code, 0);
     assert.equal(hookRun(A, 'session-end', { hook_event_name: 'SessionEnd', reason: 'clear' }, 'sid-a').code, 0);
-    const out = parse(preEdit(B, 'sid-b', 'src/api.ts'));
-    assert.ok(out, 'the stale claim is still worth mentioning');
+    const r = preEdit(B, 'sid-b', 'src/api.ts');
+    const out = parse(r);
+    assert.ok(out, explain('stale claim produced nothing', r));
     assert.ok(!('permissionDecision' in out.hookSpecificOutput),
       'a finished agent must not be able to block a running one, or a crashed session would wedge the tree');
   });
