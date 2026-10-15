@@ -91,7 +91,7 @@ export async function collision(ctx, toolInput) {
   // That is what makes two agents in two worktrees react to each other in milliseconds instead of a sync
   // interval. It cannot resurrect a dead remote: anything from another machine still comes via the snapshot.
   //
-  // Loaded only when a second seat is actually registered. This hook has a 120 ms watchdog and most checkouts
+  // Loaded only when a second seat is actually registered. This hook runs under a watchdog and most checkouts
   // have exactly one seat, so a developer working alone must not pay to import and run a path that can have
   // nothing to say. Counting the registry is one readdir.
   const snapshot = (await maybeWithSiblings(remote, ctx.loc, identity, now)) || remote;

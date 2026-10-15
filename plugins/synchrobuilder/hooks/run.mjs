@@ -6,10 +6,19 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { logLine } from '../lib/core/log.mjs';
 
+// Budgets are a self-imposed watchdog, well inside the 5 s timeout Claude Code allows a hook. They exist so a
+// slow disk or a stuck read can never make a developer wait, not to hit a latency target.
+//
+// prompt and pre-edit were 120 ms. That was measured against a fast machine: the same hooks cost 21 to 26 ms
+// on macOS but a Windows CI runner runs them roughly four times slower, and session-start there reports 224 ms
+// of its 400 ms. At 120 ms the pre-edit watchdog fired on that runner and the collision warning vanished with
+// no sign to the user, which is the worst outcome available: the feature silently stops working on exactly the
+// machines least able to afford a lost warning. 400 ms is still far below anything a person notices between an
+// agent deciding to edit and the edit happening, and the hook still cannot hang.
 const VERBS = {
   'session-start': { module: 'session-start.mjs', budgetMs: 400 },
-  'prompt': { module: 'prompt.mjs', budgetMs: 120 },
-  'pre-edit': { module: 'pre-edit.mjs', budgetMs: 120 },
+  'prompt': { module: 'prompt.mjs', budgetMs: 400 },
+  'pre-edit': { module: 'pre-edit.mjs', budgetMs: 400 },
   'post-edit': { module: 'post-edit.mjs', budgetMs: 1500 },
   'stop': { module: 'stop.mjs', budgetMs: 2000 },
   'session-end': { module: 'session-end.mjs', budgetMs: 1000 },

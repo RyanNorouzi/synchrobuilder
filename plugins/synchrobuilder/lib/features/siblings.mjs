@@ -15,7 +15,7 @@ import { validClaims, validPresence, isSeat } from '../core/schema.mjs';
 import { liveSessions } from '../state/sessions.mjs';
 
 // Enough journal to hold every claim a session realistically makes, and bounded so the cost does not grow
-// with the age of the checkout. The pre-edit hook that reads this has a 120 ms watchdog.
+// with the age of the checkout. The pre-edit hook that reads this runs under a watchdog.
 const TAIL_BYTES = 64 * 1024;
 import { logLine } from '../core/log.mjs';
 import { readJournalTail } from './journal-write.mjs';
@@ -58,7 +58,7 @@ export function siblingWriters(loc, identity, now = Date.now()) {
     //
     // own/claims.json is what the worker last published: cheap to read, but a tick behind, so it misses the
     // claim made a second ago that this whole path exists to catch. The journal has that claim the instant it
-    // is written, but reading all of it is unbounded work inside a hook with a 120 ms watchdog, and a journal
+    // is written, but reading all of it is unbounded work inside a watchdogged hook, and a journal
     // grows for the life of a checkout. A bounded tail keeps the cost flat and catches anything recent; the
     // published copy covers an older claim that fell outside the tail.
     const published = validClaims(readJson(path.join(seat.checkoutDir, 'own', 'claims.json'), null), now) || [];
