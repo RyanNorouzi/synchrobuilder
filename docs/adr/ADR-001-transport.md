@@ -3,6 +3,9 @@
 - Status: Proposed (awaiting approval at the end of Phase 0)
 - Date: 2026-09-18
 - Deciders: lead engineer, project owner
+- Amended: 2026-10-15, see "Amendment 2026-10-15: a third ref segment, and
+  several refs per worker" at the end. The decision below is the original
+  text; the amendment says which parts of it no longer describe the code.
 - Evidence: `docs/research/experiments.md` (E5, E8),
   `docs/research/evidence/transport-design-panel.json` (three design
   proposals and two adversarial judges with their local git experiments)
@@ -54,7 +57,8 @@ on the synthesis below. Their most important findings:
 - Each (developer, device) publishes exactly one ref:
   `refs/synchrobuilder/v1/<handle>/<device>`. `<handle>` follows ADR-002;
   `<device>` is a random 8-hex id generated once per machine and stored
-  locally, never the hostname.
+  locally, never the hostname. (Amended 2026-10-15: the ref has a third
+  segment, the seat, and one worker publishes one ref per seat.)
 - The ref's tip is always a **parentless snapshot commit** whose tree holds
   only that writer's files: `presence.json`, `claims.json`, `board.json`,
   `contracts.json`, `messages/<ulid>.json`, `handoffs/<ulid>.json`, plus
@@ -162,7 +166,9 @@ by walking up from `cwd` to the `.git` entry, follow `gitdir:` and
 `commondir` files by reading them, hash the raw `remote.origin.url` from
 `.git/config` the same way the worker does, and read
 `~/.synchrobuilder/remotes/<key>/snapshot.json` plus their own per-checkout
-directory `~/.synchrobuilder/checkouts/<sha256 of common dir>/`. All local
+directory `~/.synchrobuilder/checkouts/<sha256 of common dir>/` (amended
+2026-10-15: keyed on the working tree's own git directory, so each worktree
+has its own). All local
 writes by hooks are appends to the journal or kick file in that directory.
 The staleness ladder is applied at render time: snapshot under 5 min old,
 full policy; 5 to 15 min, "ask" degrades to "warn"; over 15 min, warn only
@@ -241,3 +247,58 @@ teardown; `git.exe` and credential-manager behavior from a background
 process on Windows; real-network tick cost against large-ref remotes;
 repo-local-only credentials; two checkouts and linked worktrees of one
 remote on one machine; laptop sleep mid-push.
+
+## Amendment 2026-10-15: a third ref segment, and several refs per worker
+
+The transport is unchanged in shape: one ref per writer, parentless snapshot
+commits, `--force-with-lease`, no merges, no read before write. What changed is
+who counts as a writer.
+
+### What changed
+
+- The writer ref is `refs/synchrobuilder/v1/<handle>/<device>/<seat>`, and the
+  branch-mode fallback in §3 is
+  `refs/heads/synchrobuilder/v1/<handle>/<device>/<seat>`. A seat is one git
+  working tree, sixteen hex characters, derived as described in the ADR-002
+  amendment. §1 above describes the two-segment form, which is what releases
+  before this change published.
+- Two-segment refs still parse. `parseWriterRef()` accepts both shapes and
+  reports `seat: null` for the old one; a null seat is a distinct value from
+  any real seat in `writerKey()`, so an old ref keeps its own slot rather than
+  colliding with a new one; and the feature layer's `isSelf` falls back to
+  comparing handle and device whenever either side has no seat, so a developer
+  mid-upgrade is never shown their own work as a teammate's. A transport
+  constructed without a seat publishes the two-segment ref.
+- `manifest.json` carries `seat` beside `handle` and `device`, and the reader
+  treats a tree whose manifest names a seat its ref does not as a mismatch,
+  exactly as it already did for a wrong handle or device (§2).
+- One worker publishes several refs. The registry of checkouts for a remote is
+  now a directory of one small JSON file per seat under
+  `remotes/<key>/checkouts/`, which replaces an unlocked read-modify-write of
+  one shared array, and a tick resolves identity per entry and publishes every
+  registered seat to its own ref. Before this, a tick published only the last
+  registered checkout, so a second clone's or a second worktree's claims,
+  presence and messages were silently discarded. One fetch still serves every
+  seat, because the fetch brings down the whole namespace.
+- The per-checkout directory in §6 is keyed on the working tree's own git
+  directory rather than the common one.
+
+### What it costs
+
+A person publishes one ref per working tree, so the refs a reader walks and
+the bytes a tick moves grow with worktrees as well as with people. The caps in
+§2 and `MAX_WRITERS` in the reader are unchanged, which means less headroom
+under them, and §5's rule that the interval stretches with the remote's ref
+advertisement starts to matter at smaller team sizes.
+
+### Evidence
+
+`tests/unit/workspace-seats.test.mjs` asserts both ref shapes, the ref the
+transport constructs with and without a seat, and that the fold keeps every
+seat. `tests/e2e/worktree-agents.test.mjs` drives two worktrees of one clone
+against a local bare remote and finds exactly two refs in `ls-remote`, one per
+seat. Both were run on macOS on 2026-10-15.
+
+This covers one item from the not-verified list above, linked worktrees of one
+remote on one machine. Two separate clones on one machine still have no test,
+and nothing else on that list is affected.

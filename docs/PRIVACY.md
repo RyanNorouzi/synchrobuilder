@@ -31,7 +31,10 @@ key-like words, and credentials embedded in URLs are replaced with
 The commit that carries these files is authored as
 `<handle>@synchrobuilder.invalid` and its message starts with `[skip ci]`.
 Your real email is not used unless your team opts in for a git host that
-enforces author rules (`.synchrobuilder/team.json`, `transport.realEmail`).
+enforces author rules (`transport.realEmail` in
+`.synchrobuilder/config.json`). Opting in puts the address in the author field
+of the state commits this plugin pushes, and nowhere else: it is not written to
+`identity.json` and never appears in a published file.
 
 ## What never leaves your machine
 

@@ -9,4 +9,4 @@
 // the snapshot through lib/core/schema.mjs (common.mjs normalizeSnapshot) and accepts ctx.now (ms) for deterministic tests.
 // Supporting modules: common.mjs (identity, snapshot, staleness, paths), presence.mjs, board-fold.mjs, claims.mjs, seen.mjs,
 // budget.mjs (priority-ordered rendering under a character limit), journal-write.mjs (append + kick, tail reader), symbols.mjs.
-export const FEATURE_SEAMS = ['digest', 'inbox', 'collision', 'contracts', 'handoff', 'seats'];
+// Documentation only: the seam list above is the contract, and the hooks import each seam by name, so there is nothing to export here.

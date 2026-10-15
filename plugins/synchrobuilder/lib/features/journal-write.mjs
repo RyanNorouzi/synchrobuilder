@@ -3,13 +3,19 @@
 // Appending also touches <checkoutDir>/kick so the worker publishes on its next tick. Never throws (fail open).
 import fs from 'node:fs';
 import { appendLine, touch } from '../core/fsx.mjs';
-import { paths } from '../state/layout.mjs';
+import { paths, JOURNAL_TYPES } from '../state/layout.mjs';
+import { redactDeep } from '../state/journal.mjs';
 import { logLine } from '../core/log.mjs';
 
+// This is the second writer into journal.jsonl, and it used to accept any event with a string type and write its fields
+// verbatim, while appendEvent in lib/state/journal.mjs validated the type and redacted. One file with two contracts means
+// the publish-time guarantee depends on which function a caller happened to pick, so both now check the same list and run
+// the same redactor. A secret is cheaper to refuse here than to clean out of every reader downstream.
 export function appendJournal(checkoutDir, event, { sid = '', kick = true, t } = {}) {
-  if (!checkoutDir || !event || typeof event.type !== 'string') return false;
+  if (!checkoutDir || !event || !JOURNAL_TYPES.includes(event.type)) return false;
   const p = paths.checkout(checkoutDir);
-  const record = { t: t || new Date().toISOString(), sid: String(sid || ''), ...event };
+  const { type, ...rest } = event;
+  const record = { t: t || new Date().toISOString(), sid: String(sid || ''), type, ...redactDeep(rest) };
   try {
     appendLine(p.journal, JSON.stringify(record));
     if (kick) touch(p.kick);

@@ -62,6 +62,35 @@ function foldBoardOps(events) {
   return [...tasks.values()].slice(-50);
 }
 
+/**
+ * The published form of a handoff event. Every real path into that event already redacts upstream (stageHandoff ->
+ * draftFromEvents -> cleanLine), and appendJournal redacts now too, but this is the boundary where bytes leave the
+ * machine, and it is the only one that also covers journal lines written by an older plugin version or by a future
+ * caller that forgets. So the handoff gets exactly the cleaning presence, claim notes and board titles get, and the
+ * guarantee stops resting on who wrote the event. Fixing only the write boundary would leave the published file trusting
+ * its input; fixing only this one would keep secrets on local disk. Both, with this one as the load-bearing half.
+ * Free text goes through clean(); paths are redacted and then re-validated instead, because HTML-escaping a path would
+ * corrupt a legitimate one while leaving it valid for the reader. The caps mirror validHandoff in core/schema.mjs.
+ */
+function cleanHandoff(handoff, { id, from, at }) {
+  const lines = (value, max) => (Array.isArray(value) ? value.map((s) => clean(s, LIMITS.task)).filter(Boolean).slice(0, max) : []);
+  const pathList = (value, max) => (Array.isArray(value) ? value.map((p) => validRepoPath(redact(String(p ?? '')).text)).filter(Boolean).slice(0, max) : []);
+  return {
+    id,
+    from,
+    at,
+    branch: validBranch(handoff.branch) || null,
+    task: clean(handoff.task || '', LIMITS.task),
+    done: lines(handoff.done, 10),
+    files: pathList(handoff.files, 30),
+    interfaces: lines(handoff.interfaces, 10),
+    decisions: lines(handoff.decisions, 10),
+    blockers: lines(handoff.blockers, 5),
+    next: lines(handoff.next, 10),
+    for: Array.isArray(handoff.for) ? handoff.for.filter(isHandle).slice(0, 8) : [],
+  };
+}
+
 function recentEditPaths(events, now) {
   const seen = new Map();
   for (const ev of events) {
@@ -129,7 +158,7 @@ export function buildOwnTree({ checkoutDir, handle, device, seat = null, branch 
     }
     if (ev.type === 'handoff' && ev.handoff && now - ms(ev.t) < HANDOFF_WINDOW_MS) {
       const id = ev.handoff.id || ev.id;
-      if (id) tree[`handoffs/${id}.json`] = JSON.stringify({ ...ev.handoff, id, from: handle, at: ev.handoff.at || ev.t });
+      if (id) tree[`handoffs/${id}.json`] = JSON.stringify(cleanHandoff(ev.handoff, { id, from: handle, at: ev.handoff.at || ev.t }));
     }
   }
   const names = Object.keys(tree).sort();

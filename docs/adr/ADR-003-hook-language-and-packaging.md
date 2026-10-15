@@ -3,6 +3,9 @@
 - Status: Proposed (awaiting approval at the end of Phase 0)
 - Date: 2026-09-18
 - Deciders: lead engineer, project owner
+- Amended: 2026-10-15, see "Amendment 2026-10-15: `collision.mode = block`,
+  one opt-in exception" at the end. The fail-open contract in §3 is unchanged;
+  the amendment records the one path on which a hook now returns a refusal.
 
 ## Context
 
@@ -61,7 +64,8 @@ is not on `PATH`.
    ships a single hook program. `timeout` is set explicitly and small on every
    hook (5 s for the fast hooks, 15 s for `SessionEnd`) as a backstop; the
    program itself enforces a tighter internal watchdog.
-3. **Fail-open contract** (every hook, every verb):
+3. **Fail-open contract** (every hook, every verb; one deliberate exception
+   was added on 2026-10-15, see the amendment at the end):
    - The whole program runs inside one `try/catch`; on any error it writes a
      one-line record to `~/.synchrobuilder/logs/hooks.log` (rotated at
      1 MB), prints nothing, and exits 0. It never exits 2.
@@ -161,3 +165,52 @@ is not on `PATH`.
   and Linux; behavior when the plugin is installed through a marketplace
   rather than `--plugin-dir` (cache copy path, `CLAUDE_PLUGIN_ROOT` value);
   the Desktop app's `PATH`. All are Phase 1 acceptance criteria.
+
+## Amendment 2026-10-15: `collision.mode = block`, one opt-in exception
+
+§3 is the fail-open contract and every error path in it is unchanged. This
+amendment exists because a reader of §3 would otherwise be entitled to assume
+no hook can ever deny a tool call, and since 2026-10-15 one can.
+
+### What it is
+
+With `collision.mode` set to `"block"` in `.synchrobuilder/config.json`, the
+`PreToolUse` collision check returns
+`hookSpecificOutput.permissionDecision = "deny"` with a reason that names the
+file, says where the holder is working, and names the two commands that lift
+the hold: `synchrobuilder release <path>` and `synchrobuilder status`. The
+default stays `warn`, which is advisory, and `ask` is unchanged.
+
+### Scope, which is deliberately narrow
+
+- It fires only for an active claim held by another seat on this machine whose
+  session is live. The condition in `lib/features/collision.mjs` requires all
+  three of `writer.local`, `writer.live` and a match of kind `claim`.
+- A writer that arrived over the network can never trigger it. Nothing can
+  confirm that a teammate on another machine is still at their desk.
+- A sibling whose session has ended can never trigger it, so a crashed or
+  finished agent cannot wedge the working tree.
+- Every error path still writes one line to the hook log, prints nothing and
+  exits 0, and no hook ever exits 2. A deny is a decision the hook reached on
+  its success path, not a failure mode, and no internal error can produce one.
+- A hook that overruns its watchdog or its declared timeout still produces no
+  output, so the tool call proceeds. That is unchanged.
+
+### Why it is worth the exception
+
+A warning is a sentence an agent can read and reason past. For a person that
+is the right trade, because the person decides. For two agents editing the
+same file in the same second the alternative to a refusal is both of them
+writing over each other. Keeping it opt-in, same-machine and live-session-only
+means the exception can never be triggered by anything outside the machine the
+developer is sitting at.
+
+### Evidence
+
+`tests/e2e/worktree-agents.test.mjs` asserts the deny and its reason text,
+that `warn` stays advisory, that releasing the claim lifts the block at once,
+and that a sibling whose session has ended warns but does not block. What it
+asserts is the hook's JSON output. That Claude Code itself refuses the edit on
+receiving that output is taken from the hooks documentation and has not been
+driven through a real session here; `docs/VERIFICATION.md` lists that as
+unverified.

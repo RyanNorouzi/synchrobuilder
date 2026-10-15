@@ -13,8 +13,9 @@ export const COMPACT_BYTES = 2 * 1024 * 1024;
 export const COMPACT_KEEP_LINES = 5000;
 
 // Every string in an event goes through the redactor: the fields are ours, but a claim note or task summary can still
-// contain a pasted token, and the journal is what gets published.
-function redactDeep(value, depth = 0) {
+// contain a pasted token, and the journal is what gets published. Exported so features/journal-write.mjs, the other
+// writer into the same file, gives the same guarantee rather than a weaker one.
+export function redactDeep(value, depth = 0) {
   if (depth > MAX_DEPTH) return null;
   if (typeof value === 'string') return redact(value).text;
   if (Array.isArray(value)) return value.slice(0, MAX_KEYS).map((v) => redactDeep(v, depth + 1));

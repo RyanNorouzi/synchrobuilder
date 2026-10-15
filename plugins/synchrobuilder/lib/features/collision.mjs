@@ -1,6 +1,10 @@
 // PreToolUse collision check: before Claude edits a file, say who claimed it or edited it recently. Warn by default, ask only
 // when the team opted in, the snapshot is fresh and the permission mode allows a prompt (ADR-001 section 6, PLAN section 1.7).
-// Throttled to once per file per config.collision.windowMinutes through <checkoutDir>/warned.json. Advisory: never blocks.
+// Throttled per file through <checkoutDir>/warned.json: config.collision.windowMinutes normally, and the much
+// shorter siblingWindowMinutes when the holder is another agent on this machine.
+// Advisory by default. The one exception is mode 'block', which denies an edit to a file a LIVE SIBLING on
+// this machine is holding. A remote writer can never trigger it and neither can a finished session, and every
+// internal error path still fails open (ADR-003 amendment).
 import path from 'node:path';
 import { readJson, writeJsonAtomic } from '../core/fsx.mjs';
 import { CASE_INSENSITIVE } from '../core/paths.mjs';

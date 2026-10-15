@@ -6,6 +6,8 @@ import path from 'node:path';
 import { readJson, writeJsonAtomic, exists } from '../core/fsx.mjs';
 import { logLine } from '../core/log.mjs';
 import { readTeam, readConfig } from '../core/config.mjs';
+import { isSeat } from '../core/schema.mjs';
+import { shortHash } from '../core/paths.mjs';
 import { paths } from '../state/layout.mjs';
 import { acquireLock, heartbeatLock, releaseLock, lockHeldByLive } from '../state/lock.mjs';
 import { liveSessions, readBranch, pruneSessions } from '../state/sessions.mjs';
@@ -52,13 +54,16 @@ export function readRegistry(remoteDir) {
 }
 
 export function registerCheckout(remoteDir, entry) {
-  const seat = typeof entry.seat === 'string' && /^[a-f0-9]{8,32}$/.test(entry.seat)
-    ? entry.seat
-    : path.basename(String(entry.checkoutDir || 'seat'));
+  // Two separate concerns, which were conflated before. The stored `seat` must satisfy isSeat or be null, so
+  // readSeats can never read back a value it would refuse. The file NAME only has to be unique and safe, so it
+  // falls back to a hash of the checkout path when there is no seat, rather than refusing to register at all.
+  const fromDir = path.basename(String(entry.checkoutDir || ''));
+  const seat = isSeat(entry.seat) ? entry.seat : (isSeat(fromDir) ? fromDir : null);
+  const file = seat || shortHash(String(entry.checkoutDir || 'seat'));
   const dir = path.join(remoteDir, 'checkouts');
   try {
     fs.mkdirSync(dir, { recursive: true });
-    writeJsonAtomic(path.join(dir, `${seat}.json`), { ...entry, seat, updatedAt: new Date().toISOString() });
+    writeJsonAtomic(path.join(dir, `${file}.json`), { ...entry, seat, updatedAt: new Date().toISOString() });
     return true;
   } catch { return false; }
 }

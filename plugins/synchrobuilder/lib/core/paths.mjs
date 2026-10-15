@@ -123,8 +123,8 @@ export function remoteKey(url) { return shortHash(normalizeRemoteUrl(url)); }
  *  instead of inheriting the main checkout's, which is what lets two agents in two worktrees hold separate
  *  journals, claims, throttles and guard caches rather than silently sharing one set (ADR-002 amendment).
  *
- *  The value doubles as the published `seat`: eight hex characters of a one-way hash of a local path, so it
- *  distinguishes workspaces without carrying anything about the machine off it. */
+ *  The value doubles as the published `seat`: sixteen hex characters of a one-way hash of a local path, which
+ *  is what isSeat() requires. It distinguishes workspaces without carrying anything about the machine off it. */
 export function workspaceKey(gitDir) { return shortHash(canonicalPath(gitDir)); }
 
 /** Kept for callers that still think in terms of the common directory. Prefer workspaceKey. */

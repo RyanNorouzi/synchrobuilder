@@ -24,10 +24,13 @@ node plugins/synchrobuilder/bin/synchrobuilder.mjs audit --strict
 
 ## Verified by the test suite on three operating systems
 
-245 tests, 244 passing and 1 skipped. The CI matrix runs them on ubuntu, macos and
+265 tests, 264 passing and 1 skipped, from `node scripts/test.mjs` on 2026-10-15. The CI
+matrix runs them on ubuntu, macos and
 windows, on Node 20 and Node 24, plus a Windows job that checks the repository out with
 CRLF line endings. Every job passed on 2026-09-18, and again on 2026-10-15 with the worker and lock tests added
-(`https://github.com/RyanNorouzi/synchrobuilder/actions`). Two real bugs were found by
+(`https://github.com/RyanNorouzi/synchrobuilder/actions`). The seat and sibling tests
+added later on 2026-10-15 have been run on macOS only so far; their first three-OS run
+is the CI run for that change. Two real bugs were found by
 that first run and fixed: an integration test that planted a file which silenced the
 very rule it was testing on case-sensitive file systems, and Windows 8.3 short paths
 (`RUNNER~1` against `runneradmin`) making tests disagree with the product's own path
@@ -42,7 +45,8 @@ runs on the Linux CI job.
 | :-- | :-- | :-- |
 | Hook contract | All six hooks exit 0 on recorded inputs, on malformed stdin, on an unknown verb and outside a git repository; output is a single JSON object or nothing; nothing is written outside the state directory | `tests/hooks/replay.test.mjs` |
 | Hook speed | End to end per hook on this machine: 21 to 26 ms, measured by spawning the real dispatcher | `tests/hooks/replay.test.mjs` (prints timings) |
-| Path identity | One checkout resolves to one state directory through symlinks, worktrees and `gitdir:` files; remote URL spellings normalize to one key | `tests/unit/paths.test.mjs` |
+| Path identity | One checkout resolves to one state directory through a symlinked path, so a hook and the CLI agree; a linked worktree's `gitdir:` and `commondir` files are followed by reading them, with no git process; remote URL spellings normalize to one key | `tests/unit/paths.test.mjs` |
+| Seat addressing | Three working trees of one clone get three distinct seats and three distinct state directories while still sharing one common git directory, and a plain clone's key is unchanged by the move from the common directory to the working tree's own, so no existing state directory moves; a seat is sixteen hex characters; writer refs carry the seat and two-segment refs from before seats parse with a null seat; `isSelf` compares the seat and falls back to handle and device when either side has none; teammates, siblings and remote writers are three different lists; the fold keeps every seat and marks which came off this machine. This row replaces an earlier claim that worktrees resolve to one state directory, which described the pre-seat collapsing rather than correctness | `tests/unit/workspace-seats.test.mjs` |
 | Untrusted input | Identifier validators reject traversal, Windows-illegal names, control and format characters, homoglyphs and future timestamps | `tests/unit/schema.test.mjs` |
 | Sanitizer and wrapper | The ADR-005 pipeline, the nonce-delimited wrapper and its guard, plus the 48-payload injection corpus from the threat model | `tests/injection/corpus.test.mjs`, `tests/unit/{sanitize,redact,wrap}.test.mjs` |
 | Audit rules | Twelve rules with positive and negative fixtures | `tests/unit/audit-rules-1.test.mjs`, `tests/unit/audit-rule-path-concat.test.mjs`, `tests/integration/audit-demo.test.mjs` |
@@ -58,6 +62,7 @@ runs on the Linux CI job.
 | Worker wake-ups | A kick that lands while a tick is still running wakes the worker immediately instead of being swallowed for a whole interval | `tests/unit/lock.test.mjs` |
 | The detached worker, end to end | A session start spawns a real detached worker that takes the lock and publishes to the remote; a second worker refuses to start beside it; the other developer's worker pulls the claim; the session ends and the worker finishes a last tick, delivers that final claim and exits releasing its lock; neither repository is written to. Green on ubuntu, macOS and Windows, Node 20 and 24, on 2026-10-15 | `tests/e2e/worker.test.mjs` |
 | Multiplayer end to end | Two developers, one bare remote, no Claude: presence, a claim producing a collision warning, a message round trip, a handoff reaching the other developer's digest, offline queueing and recovery, and neither repository touched | `tests/e2e/multiplayer.test.mjs` |
+| Two agents in two worktrees, end to end | Two worktrees of one clone on one machine with one git identity, against a local bare remote, driving the real hooks, CLI and worker: the two trees are two seats with two state directories sharing one remote directory, both register and each publishes its own ref (`ls-remote` shows exactly two, one per seat), a claim made in one tree reaches the other tree's pre-edit hook with no worker tick in between, a file nobody holds produces no warning, `warn` mode stays advisory, `block` mode returns a deny naming `release` and `status`, releasing the claim lifts it at once, a sibling whose session has ended warns but does not block, and neither worktree is written to. Run on macOS on 2026-10-15 | `tests/e2e/worktree-agents.test.mjs` |
 
 ## Verified by running the real Claude Code CLI
 
@@ -154,6 +159,8 @@ Nothing below is claimed anywhere as working.
 | The manifest schema validator | It is reached only indirectly, through the setup planner. Its own rules (exact versions, length and count limits, duplicate env names, `default` beside `value`) have no test asserting them directly | A dedicated `tests/unit/manifest.test.mjs` |
 | Force-push survival, a poisoned ref, and a mirror push that deletes the namespace | The hosted GitHub check confirmed `--force-with-lease` replaces the writer's own ref, but no test drives a hostile or destructive remote | An end-to-end test that corrupts and deletes the namespace between ticks |
 | Package managers resolved without a shell on Windows | The resolution code exists and is unit tested with a fake layout; no real Windows run | Windows CI |
+| Claude Code acting on a `block` decision | The test asserts the hook's `permissionDecision: "deny"` output, not that the CLI refuses the edit when it receives one. The shape comes from the hooks documentation | A session driven through `claude -p` with `collision.mode` set to `block` |
+| Two separate clones of one remote on one machine | The worktree test covers two working trees of one clone. Nothing registers two independent clones against one remote, which is the other case the per-seat registry and per-seat publishing were written for | Extend the worktree test with a second clone of the same remote |
 
 ## How to keep this file honest
 

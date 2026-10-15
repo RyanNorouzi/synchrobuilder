@@ -13,14 +13,17 @@ together:
 - **Multiplayer.** Several developers, each with their own Claude Code on
   their own machine, working in the same repo at the same time, with each
   Claude aware of what the others are doing. State travels through the git
-  remote you already have; nothing is hosted.
+  remote you already have; nothing is hosted. Two sessions in two worktrees of
+  one clone count as two participants as well, so they see each other's
+  claims.
 
 ## Status
 
 Pre-release. See [PLAN.md](PLAN.md) for the phases and
 [CHANGELOG.md](CHANGELOG.md) for what exists. Nothing is claimed to work
-unless a test in this repository proves it; see `docs/VERIFICATION.md` once it
-exists.
+unless a test in this repository proves it;
+[docs/VERIFICATION.md](docs/VERIFICATION.md) lists what is verified, how, and
+what is not.
 
 ## Install
 
@@ -36,9 +39,7 @@ It shows you the two Claude Code commands it will run, asks, then runs them.
 /plugin install synchrobuilder@synchrobuilder
 ```
 
-The repository is private while it is being finished, so the marketplace install works
-only for people it is shared with. Prerequisites:
-Claude Code, Node.js 20 or newer on `PATH`, git.
+Prerequisites: Claude Code, Node.js 20 or newer on `PATH`, git.
 
 To try a checkout locally without installing anything:
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { seatsNotice, activeHandles, PRICING_URL } from '../../plugins/synchrobuilder/lib/features/seats.mjs';
+import { seatsNotice, activeHandles, PRICING_URL, FREE_SEATS } from '../../plugins/synchrobuilder/lib/features/seats.mjs';
 
 const NOW = Date.parse('2026-09-18T12:00:00Z');
 const day = 24 * 3600 * 1000;
@@ -24,7 +24,10 @@ test('notice once per interval for more than three active handles, recorded in t
   const file = stateFile();
   const snap = { writers: [writer('a', 0), writer('b', 1), writer('c', 2), writer('d', 20)] };
   const note = seatsNotice(snap, NOW, file);
-  assert.ok(note && note.includes('4 people') && note.includes(PRICING_URL) && note.includes('placeholder'));
+  assert.ok(note && note.includes('4 people') && note.includes(PRICING_URL));
+  assert.equal(PRICING_URL, 'https://synchrobuilder.com/pricing.html', 'the note points at the real pricing page');
+  // The terms in the note have to be the terms on the page: three free seats, then 3 USD per person per month, and planned either way.
+  assert.ok(note.includes(`the first ${FREE_SEATS} seats are free forever`) && note.includes('planned at 3 USD per person per month'), note);
   assert.ok(!/disabled|limit(ed)? to/i.test(note.replace('nothing is limited or disabled', '')), 'friendly, no threats');
   assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).lastNoticeAt, new Date(NOW).toISOString());
   assert.equal(seatsNotice(snap, NOW + 6 * day, file), null, 'not repeated inside the interval');

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { makeRig, iso, NOW } from './features-rig.mjs';
 import { stageHandoff, finalizeHandoff, draftFromEvents } from '../../plugins/synchrobuilder/lib/features/handoff.mjs';
 import { extractFromMessage, describeEdits } from '../../plugins/synchrobuilder/lib/features/handoff-text.mjs';
+import { appendJournal } from '../../plugins/synchrobuilder/lib/features/journal-write.mjs';
+import { buildOwnTree } from '../../plugins/synchrobuilder/lib/state/own.mjs';
 
 const MESSAGE = `I moved the refresh logic.
 
@@ -85,4 +87,52 @@ test('stageHandoff returns null with no events; finalizeHandoff appends a valida
   assert.ok(ev && ev.handoff.id === draft.id && ev.sid === 'sess-1');
   assert.ok(rig.readJson('handoff-draft.json').finalizedAt);
   assert.equal(draftFromEvents([], '', '').files.length, 0);
+});
+
+// Defence in depth for the publish boundary (own.mjs) and the journal-write boundary (journal-write.mjs). Every real path
+// into a handoff event already redacts upstream; these two tests make the guarantee stop depending on that, by writing an
+// event the way a future caller (or an older plugin version) could and checking that no secret survives either boundary.
+const AWS_KEY = 'AKIAIOSFODNN7EXAMPLE';
+const KV_VALUE = '1a2b3c4d5e6f7g8h';
+const HANDOFF_ID = '01JQZX1234567890ABCDEFGHJK';
+
+function unredactedHandoff() {
+  return {
+    id: HANDOFF_ID, from: 'alice', at: iso(-5), branch: 'feat/rotate-keys',
+    task: `rotate ${AWS_KEY} before the release`,
+    done: [`removed api_key=${KV_VALUE} from the config`],
+    files: ['src/api/users.ts', `src/api/api_key=${KV_VALUE}.ts`],
+    interfaces: [`src/shared/types.ts: ${AWS_KEY}`],
+    decisions: [], blockers: [`waiting on api_key=${KV_VALUE}`], next: ['wire the client'], for: ['bob', 'Not-Valid'],
+  };
+}
+
+test('buildOwnTree cleans the handoff it publishes: a secret the journal never redacted does not reach handoffs/<id>.json', () => {
+  const built = buildOwnTree({
+    handle: 'alice', device: 'aaaaaaaa', now: NOW,
+    events: [{ t: iso(-5), sid: 'sess-1', type: 'handoff', handoff: unredactedHandoff() }],
+  });
+  const text = built.tree[`handoffs/${HANDOFF_ID}.json`];
+  assert.ok(text, 'the handoff is still published');
+  for (const secret of [AWS_KEY, KV_VALUE]) {
+    assert.ok(!JSON.stringify(built.tree).includes(secret), `${secret} must not leave this machine`);
+  }
+  const published = JSON.parse(text);
+  assert.equal(published.from, 'alice');
+  assert.equal(published.branch, 'feat/rotate-keys');
+  assert.ok(published.task.includes('[redacted]'), `the task keeps its prose: ${published.task}`);
+  assert.deepEqual(published.next, ['wire the client'], 'clean text is published unchanged');
+  assert.deepEqual(published.for, ['bob'], 'invalid handles are dropped here too');
+  assert.ok(published.files.includes('src/api/users.ts'), 'a legitimate path survives intact');
+});
+
+test('appendJournal validates the event type and redacts, so a secret never reaches the journal in the first place', async () => {
+  const rig = await makeRig({ snapshot: null });
+  assert.equal(appendJournal(rig.checkoutDir, { type: 'not-a-journal-type', text: AWS_KEY }), false, 'unknown event types are refused');
+  assert.equal(appendJournal(rig.checkoutDir, { type: 'handoff', handoff: unredactedHandoff() }, { sid: 'sess-1', t: iso(-5) }), true);
+  const onDisk = JSON.stringify(rig.readJournal());
+  assert.ok(!onDisk.includes(AWS_KEY) && !onDisk.includes(KV_VALUE), `the journal line is redacted: ${onDisk}`);
+  const ev = rig.readJournal().find((e) => e.type === 'handoff');
+  assert.ok(ev.handoff.task.includes('[redacted]'));
+  assert.equal(ev.sid, 'sess-1');
 });
