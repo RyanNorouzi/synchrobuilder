@@ -43,6 +43,27 @@ const preEdit = (cwd, sid, rel) => hookRun(cwd, 'pre-edit', {
   hook_event_name: 'PreToolUse', tool_name: 'Edit', tool_input: { file_path: path.join(cwd, rel) },
 }, sid);
 const parse = (r) => { const t = (r.stdout || '').trim(); return t.startsWith('{') ? JSON.parse(t) : null; };
+/** Recompute what the hook should have seen, in this process, so a silent hook cannot hide where it stopped. */
+async function sawWhat(rel) {
+  try {
+    const prev = process.env.SYNCHROBUILDER_HOME;
+    process.env.SYNCHROBUILDER_HOME = home;
+    const common = await import('../../plugins/synchrobuilder/lib/features/common.mjs');
+    const sib = await import('../../plugins/synchrobuilder/lib/features/siblings.mjs');
+    const coll = await import('../../plugins/synchrobuilder/lib/features/collision.mjs');
+    const cfg = await import('../../plugins/synchrobuilder/lib/core/config.mjs');
+    const now = Date.now();
+    const id = common.readIdentity(locB.checkoutDir);
+    const sibs = sib.siblingWriters(locB, id, now);
+    const snap = sib.withSiblings(common.loadSnapshot(path.join(locB.remoteDir, 'snapshot.json'), now), locB, id, now);
+    const matches = coll.findMatches(snap, id, rel, now);
+    if (prev === undefined) delete process.env.SYNCHROBUILDER_HOME; else process.env.SYNCHROBUILDER_HOME = prev;
+    return `identity=${JSON.stringify(id)} siblings=${JSON.stringify(sibs.map((w) => ({ seat: w.seat, live: w.live, claims: w.claims.map((c) => c.path) })))} `
+      + `teammates=${common.teammates(snap, id).length} matches=${matches.length} collision=${JSON.stringify(cfg.readConfig(locB.workTree).collision)} `
+      + `warned=${(() => { try { return fs.readFileSync(path.join(locB.checkoutDir, 'warned.json'), 'utf8'); } catch { return '(none)'; } })()}`;
+  } catch (err) { return `recompute threw: ${err && err.message}`; }
+}
+
 /** Everything that might explain a hook that said nothing: its own output, and the plugin's local log. */
 function explain(label, r) {
   let log = '(no log)';
@@ -107,12 +128,12 @@ test('two agents in two worktrees of one clone', { skip: !READY && 'plugin not b
     assert.ok(refs.some((l) => l.includes(`/${locB.seat}`)), "agent B's seat is published");
   });
 
-  await t.test('a claim reaches the other agent with no sync in between', () => {
+  await t.test('a claim reaches the other agent with no sync in between', async () => {
     assert.equal(run(A, 'claim', 'src/api.ts').code, 0);
     // No worker call here on purpose: this must work off the shared filesystem alone.
     const r = preEdit(B, 'sid-b', 'src/api.ts');
     const out = parse(r);
-    assert.ok(out, explain('agent B was not warned', r));
+    assert.ok(out, `${explain('agent B was not warned', r)} :: ${await sawWhat('src/api.ts')}`);
     assert.match(out.systemMessage, /another agent here/, `expected a local-agent warning, got: ${out.systemMessage}`);
     assert.match(out.systemMessage, /agent-a/, 'and it names the branch the holder is on');
     assert.match(out.hookSpecificOutput.additionalContext, /synchrobuilder:begin teammate-data/, 'still wrapped as data');
@@ -122,21 +143,21 @@ test('two agents in two worktrees of one clone', { skip: !READY && 'plugin not b
     assert.equal((preEdit(B, 'sid-b', 'src/unclaimed.ts').stdout || '').trim(), '', 'no warning for a file nobody holds');
   });
 
-  await t.test('warn mode never refuses the edit', () => {
+  await t.test('warn mode never refuses the edit', async () => {
     writeConfig({ mode: 'warn', windowMinutes: 30, siblingWindowMinutes: 0 });
     assert.equal(run(A, 'claim', 'src/warnmode.ts').code, 0);
     const r = preEdit(B, 'sid-b', 'src/warnmode.ts');
     const out = parse(r);
-    assert.ok(out, explain('warn mode produced nothing', r));
+    assert.ok(out, `${explain('warn mode produced nothing', r)} :: ${await sawWhat('src/warnmode.ts')}`);
     assert.ok(!('permissionDecision' in out.hookSpecificOutput), 'warn mode stays advisory');
   });
 
-  await t.test('block mode refuses a file a live sibling is holding, and says how it clears', () => {
+  await t.test('block mode refuses a file a live sibling is holding, and says how it clears', async () => {
     writeConfig({ mode: 'block', windowMinutes: 30, siblingWindowMinutes: 0 });
     assert.equal(run(A, 'claim', 'src/blockmode.ts').code, 0);
     const r = preEdit(B, 'sid-b', 'src/blockmode.ts');
     const out = parse(r);
-    assert.ok(out, explain('block mode produced nothing', r));
+    assert.ok(out, `${explain('block mode produced nothing', r)} :: ${await sawWhat('src/blockmode.ts')}`);
     assert.equal(out.hookSpecificOutput.permissionDecision, 'deny');
     const why = out.hookSpecificOutput.permissionDecisionReason;
     assert.match(why, /another agent on this machine is holding src\/blockmode\.ts/);
@@ -151,12 +172,12 @@ test('two agents in two worktrees of one clone', { skip: !READY && 'plugin not b
     assert.equal((preEdit(B, 'sid-b', 'src/released.ts').stdout || '').trim(), '', 'released, so nothing is said');
   });
 
-  await t.test('a sibling whose session has ended warns but never blocks', () => {
+  await t.test('a sibling whose session has ended warns but never blocks', async () => {
     assert.equal(run(A, 'claim', 'src/stale.ts').code, 0);
     assert.equal(hookRun(A, 'session-end', { hook_event_name: 'SessionEnd', reason: 'clear' }, 'sid-a').code, 0);
     const r = preEdit(B, 'sid-b', 'src/stale.ts');
     const out = parse(r);
-    assert.ok(out, explain('stale claim produced nothing', r));
+    assert.ok(out, `${explain('stale claim produced nothing', r)} :: ${await sawWhat('src/stale.ts')}`);
     assert.ok(!('permissionDecision' in out.hookSpecificOutput),
       'a finished agent must not be able to block a running one, or a crashed session would wedge the tree');
   });
