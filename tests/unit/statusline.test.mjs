@@ -93,3 +93,20 @@ test('statusline CLI: installing when no settings file exists creates it without
   assert.ok(!fs.existsSync(path.join(cfgDir, 'settings.json.synchrobuilder-backup')));
   assert.equal(plannedChange('C:\\Users\\Some One\\render.mjs').statusLine.command, 'node "C:/Users/Some One/render.mjs"');
 });
+
+// An explicit --plan asked to see the plan and stop, so printing it is the success. A bare "install" with no
+// --yes is a request for a change that was not made, which stays non-zero. These had the same exit code.
+test('statusline: --plan exits 0, a bare install without --yes does not', async () => {
+  const rig = await makeRig();
+  const cfgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sb-exit-'));
+  const env = rig.env({ CLAUDE_CONFIG_DIR: cfgDir });
+  const run = (...args) => spawnSync(process.execPath, [bin, 'statusline', ...args], { encoding: 'utf8', env, cwd: rig.repo, timeout: 10000 });
+
+  const planned = run('install', '--plan');
+  assert.equal(planned.status, 0, `--plan is a successful request: ${planned.stdout}${planned.stderr}`);
+  assert.ok(planned.stdout.includes('Change to merge into the settings file'), planned.stdout);
+
+  const bare = run('install');
+  assert.equal(bare.status, 1, 'a bare install changed nothing, so it reports that');
+  assert.ok(bare.stdout.includes('Re-run with --yes'), bare.stdout);
+});

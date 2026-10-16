@@ -44,7 +44,9 @@ export async function run({ flags, args, stdout, stderr }) {
     stdout.write(current ? `Current statusLine (will be replaced, backup kept at ${backupFile(file)}):\n${JSON.stringify({ statusLine: current }, null, 2)}\n` : 'No statusLine is configured today.\n');
     stdout.write(`Change to merge into the settings file:\n${JSON.stringify(change, null, 2)}\n`);
     stdout.write(mode === 'install' ? 'Re-run with --yes to apply: synchrobuilder statusline install --yes\n' : 'Apply with: synchrobuilder statusline install --yes\nRemove with: synchrobuilder statusline remove --yes\n');
-    return mode === 'install' ? 1 : 0;
+    // An explicit --plan asked to see the plan and stop, so showing it IS the success. A bare "install"
+    // with no --yes is different: the caller asked for a change and none was made, so that stays non-zero.
+    return flags.plan || mode !== 'install' ? 0 : 1;
   }
   if (mode === 'install') {
     if (!missing && !isOurs(current)) fs.copyFileSync(file, backupFile(file)); // keep the user's own settings once, before we touch them
