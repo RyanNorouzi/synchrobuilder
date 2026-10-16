@@ -74,3 +74,30 @@ test('collision: null when muted, without identity, or without a snapshot; findM
   const matches = findMatches(snap, { handle: 'alice', device: 'aaaaaaaa' }, 'src/api/users.ts', NOW + 5 * 3600 * 1000);
   assert.equal(matches.length, 0, 'claims expire after their ttl and edits after 30 min');
 });
+
+// Regression. The context block used to be rendered first, with "if (!result) return null" ahead of the
+// decision, so anything that made the warning unrenderable deleted the whole PreToolUse result including the
+// permission decision. That was reachable by a teammate: the budget charges a meta value at its full length
+// while the renderer drops any value over 128 characters, so a claim on a path of roughly 480 characters,
+// which the schema permits up to 512, consumes the entire budget and renders as nothing. A teammate could
+// switch off the only non-advisory control the plugin has, just by naming a long path.
+test('collision: a teammate cannot delete the decision by claiming a path too long to render', async () => {
+  const longPath = Array.from({ length: 20 }, (_, i) => `segment${String(i).padStart(2, '0')}xxxxxxxxxxxxxxxxxxxx`).join('/').slice(0, 483);
+  assert.ok(longPath.length > 400 && longPath.length <= LIMITS.path, `path is long but legal: ${longPath.length}`);
+
+  const snap = loadFixture();
+  const bob = snap.writers.find((w) => w.handle === 'bob');
+  bob.claims = [{ id: '01ARZ3NDEKTSV4RRFFQ69G5FAV', path: longPath, task: null, at: iso(-2), ttlMs: 4 * 3600 * 1000, note: 'holding this while I refactor the whole tree' }];
+  bob.edits = [];
+
+  const rig = await makeRig({ config: ASK_CONFIG, snapshot: snap });
+  const out = await collision(rig.ctx(), { file_path: path.join(rig.repo, longPath) });
+
+  assert.ok(out, 'a path too long to render must not delete the result');
+  assert.equal(out.hookSpecificOutput.permissionDecision, 'ask', 'the decision survives');
+  assert.match(out.hookSpecificOutput.permissionDecisionReason, /bob/, 'and still names who holds it');
+  assert.match(out.systemMessage, /bob claimed/, 'the human still sees a one-line notice');
+  // The context block is allowed to be missing here; what must never happen is losing the decision with it.
+  const ctx = out.hookSpecificOutput.additionalContext;
+  if (ctx) assert.ok(ctx.length <= 10000, `context stays inside the global block guard: ${ctx.length}`);
+});

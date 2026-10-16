@@ -5,7 +5,12 @@ export const SCHEMA_VERSION = 1;
 export const LIMITS = Object.freeze({
   handle: 32, device: 8, seat: 16, branch: 128, path: 512, pathSegments: 64, task: 140, message: 400, messageLines: 6, lineChars: 200,
   title: 100, taskId: 40, symbol: 80, deps: 10, claimsPerWriter: 50, claimTtlMs: 4 * 3600 * 1000, messageTtlMs: 72 * 3600 * 1000,
-  digestChars: 6000, inboxChars: 2000, collisionChars: 600, alertChars: 1500, blobBytes: 64 * 1024, filesPerWriter: 20, bytesPerSync: 1024 * 1024,
+  // inboxChars must be able to carry one message of the maximum size `message` permits. The sanitizer caps
+  // at 400 code points and then HTML-escapes, so 400 ampersands become 1,998 characters, and with the frame
+  // and the meta line that is about 2,975. At 2,000 the budgeter returned nothing: the message was never
+  // shown and, because inbox() returns before writeSeen, never marked seen either, so it was dropped again
+  // on every later prompt for the life of the message. Two limits that contradict each other is a bug.
+  digestChars: 6000, inboxChars: 3200, collisionChars: 600, alertChars: 1500, blobBytes: 64 * 1024, filesPerWriter: 20, bytesPerSync: 1024 * 1024,
 });
 
 export const RE = Object.freeze({

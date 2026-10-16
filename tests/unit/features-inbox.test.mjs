@@ -42,7 +42,8 @@ test('inbox: null when muted, without identity or snapshot, or when nothing is a
 test('inbox: messages that do not fit the budget stay unseen and are delivered later', async () => {
   const snap = loadFixture();
   const bob = snap.writers.find((w) => w.handle === 'bob');
-  bob.messages = Array.from({ length: 5 }, (_, i) => ({ id: `01K5G00000000000000000BIG${i}`, from: 'bob', to: 'alice', at: iso(-30 + i), text: `msg ${i} ` + 'x'.repeat(350) }));
+  // Each one is close to the maximum the schema allows, so several cannot share one prompt at any sane cap.
+  bob.messages = Array.from({ length: 5 }, (_, i) => ({ id: `01K5G00000000000000000BIG${i}`, from: 'bob', to: 'alice', at: iso(-30 + i), text: `msg ${i} ` + '&'.repeat(380) }));
   snap.writers = [snap.writers[0], bob];
   const rig = await makeRig({ snapshot: snap });
   const first = await inbox(rig.ctx());
@@ -52,5 +53,31 @@ test('inbox: messages that do not fit the budget stay unseen and are delivered l
   assert.ok(delivered >= 1 && delivered < 5, `delivered ${delivered}`);
   const second = await inbox(rig.ctx());
   assert.ok(second, 'the rest arrives on the next prompt');
-  assert.ok(second.hookSpecificOutput.additionalContext.includes('| msg 4') || second.hookSpecificOutput.additionalContext.includes('| msg 3'));
+  assert.match(second.hookSpecificOutput.additionalContext, /\| msg \d/, 'the rest of the messages arrive');
+});
+
+// Regression. The schema permits a 400 code point message, and the sanitizer HTML-escapes after capping, so
+// 400 ampersands become 1,998 characters. Against the old 2,000 character inbox budget the whole block failed
+// to render, inbox() returned null before writeSeen, and the message was therefore never shown and never
+// marked seen: it was re-dropped on every prompt until its TTL expired. Two limits that contradict each other.
+test('inbox: a message at the size the schema permits is delivered, not silently dropped forever', async () => {
+  const worst = Array(2).fill('&'.repeat(200)).join('\n');   // 400 code points, exactly LIMITS.message
+  assert.equal([...worst.replace(/\n/g, '')].length, 400, 'the fixture really is a maximal message');
+
+  const snap = loadFixture();
+  const bob = snap.writers.find((w) => w.handle === 'bob');
+  bob.messages = [{ id: '01ARZ3NDEKTSV4RRFFQ69G5FAV', from: 'bob', to: 'alice', at: iso(-1), text: worst }];
+  // Only this one message is in play: the fixture's other senders would otherwise fill the budget first and
+  // the deferral path, not the single-message path, would be what this test measured.
+  for (const w of snap.writers) if (w.handle !== 'bob') w.messages = [];
+  const rig = await makeRig({ snapshot: snap });
+
+  const out = await inbox(rig.ctx());
+  assert.ok(out, 'a maximal message must still be delivered');
+  const ctx = out.hookSpecificOutput.additionalContext;
+  assert.ok(ctx.length <= LIMITS.inboxChars, `inside the budget: ${ctx.length} of ${LIMITS.inboxChars}`);
+  assert.ok(ctx.includes('from=bob kind=message'), 'the message is actually in the block');
+  // And it is marked seen, so the next prompt does not repeat it.
+  const seen = rig.readJson('seen.json');
+  assert.ok(seen && Object.keys(seen).length > 0, 'delivered messages are recorded as seen');
 });

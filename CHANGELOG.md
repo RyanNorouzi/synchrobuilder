@@ -34,6 +34,19 @@ those agents could not see each other at all.
 - `tests/e2e/worktree-agents.test.mjs` and `tests/unit/workspace-seats.test.mjs`.
 
 ### Fixed
+- A teammate could switch off the only non-advisory control in the plugin. The
+  collision hook rendered its context block before building the permission
+  decision and returned nothing if the block did not fit, so a claim on a path
+  of about 480 characters, which the schema permits up to 512, discarded the
+  whole result including a `deny`. The decision is now built first and the
+  block can never gate it.
+- A message at the size the schema permits was silently lost forever. The
+  schema allows 400 code points, the sanitizer HTML-escapes after capping so
+  400 ampersands become 1,998 characters, and the 2,000 character inbox budget
+  could not carry that with its frame. The block failed to render, `inbox()`
+  returned before marking anything seen, and the message was dropped again on
+  every later prompt until it expired. `inboxChars` is now 3,200, which carries
+  a maximal message with margin and stays far below the 10,000 guard.
 - The worker published only the last registered checkout, so a second clone or
   worktree had its claims, presence and messages silently discarded.
 - The worker's mutual-exclusion guard tested a result object rather than its

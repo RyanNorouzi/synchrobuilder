@@ -115,14 +115,11 @@ export async function collision(ctx, toolInput) {
     if (m.note) lines.push(sanitizeLine(m.note, LIMITS.task));
     return { meta: { from: m.writer.handle, kind: m.kind, path: m.path, branch: p.branch || 'withheld', seen: m.writer.firstSeenAt || 'withheld', verified: m.writer.verified }, lines };
   });
-  const result = renderBudgeted({ kind: 'collision', sections: [{ entries }], limit: LIMITS.collisionChars, measure: 'body', generatedAt: new Date(now).toISOString() });
-  if (!result) return null;
-
   const top = matches[0];
   const branch = top.writer.presence && top.writer.presence.branch ? ` (branch ${top.writer.presence.branch})` : '';
   const more = matches.length > 1 ? ` and ${matches.length - 1} more` : '';
   const asOf = stale ? ` as of ${hhmmZ(snapshot.fetchedAt)}` : '';
-  const output = { hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: result.text } };
+  const output = { hookSpecificOutput: { hookEventName: 'PreToolUse' } };
   if (block) {
     // The only non-advisory path, and it refuses exactly one thing: editing a file that another agent on this
     // same machine is holding right now. Opt-in through collision.mode, and it names the way out so the agent
@@ -138,6 +135,18 @@ export async function collision(ctx, toolInput) {
     output.hookSpecificOutput.permissionDecision = 'ask';
     output.hookSpecificOutput.permissionDecisionReason = `Synchrobuilder: ${top.writer.handle} ${verb(top)} ${top.path} ${fmtAgo(top.ageMs)}${branch}. Editing ${rel} may collide with their work.`;
   }
+  // The context block is built LAST and can never gate the decision above.
+  //
+  // It used to be built first, with `if (!result) return null` before any of this, which meant a teammate who
+  // made the warning unrenderable deleted the whole PreToolUse result, the deny included. That is reachable
+  // from outside: the budget accounting charges a meta value at full length while the renderer drops any value
+  // over 128 characters, so a claim on a path of about 480 characters, which the schema permits up to 512,
+  // costs the entire budget and renders as nothing. A teammate could therefore switch off the only
+  // non-advisory control this plugin has, by naming a long path.
+  const result = renderBudgeted({ kind: 'collision', sections: [{ entries }], limit: LIMITS.collisionChars, measure: 'body', generatedAt: new Date(now).toISOString() });
+  if (result) output.hookSpecificOutput.additionalContext = result.text;
+  else logLine('features', `collision context did not fit for ${rel}; the decision still stands`);
+
   const who = top.writer.local ? 'another agent here' : top.writer.handle;
   output.systemMessage = `Synchrobuilder: ${who} ${verb(top)} ${top.path} ${fmtAgo(top.ageMs)}${branch}${more}${asOf}`;
   return output;
