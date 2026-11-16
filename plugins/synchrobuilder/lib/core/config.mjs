@@ -1,6 +1,6 @@
 // Reads the two committed team files. Both are optional; defaults keep everything working in a repo that has neither.
 //   .synchrobuilder/team.json   { version: 1, members: { alice: { name, emails: [] } } }
-//   .synchrobuilder/config.json { version: 1, collision: { mode: 'warn'|'ask'|'block', windowMinutes: 30, siblingWindowMinutes: 2 }, contracts: { paths: [globs] }, audit: { ignore: [globs], strict: false }, transport: { remote: 'origin', namespace: 'custom'|'branch' } }
+//   .synchrobuilder/config.json { version: 1, collision: { mode: 'warn'|'ask'|'block', windowMinutes: 30, siblingWindowMinutes: 2 }, contracts: { paths: [globs] }, audit: { ignore: [globs], strict: false }, transport: { remote: 'origin', namespace: 'custom'|'branch', allowPublic: false }, presence: { shareTask: false } }
 import path from 'node:path';
 import { readJson } from './fsx.mjs';
 import { isHandle } from './schema.mjs';
@@ -15,8 +15,13 @@ export const DEFAULT_CONFIG = Object.freeze({
   collision: { mode: 'warn', windowMinutes: 30, siblingWindowMinutes: 2 },
   contracts: { paths: ['**/contracts/**', '**/*.schema.*', '**/openapi.*', '**/prisma/schema.prisma', '**/*.proto', '**/types/**'] },
   audit: { ignore: [], strict: false },
-  transport: { remote: 'origin', namespace: 'custom', intervalSeconds: 45 },
+  // allowPublic: publish state to a remote anyone can read. Off by default, because everything Synchrobuilder
+  // publishes (handle, branch, claims, handoffs) becomes world-readable on a public repository.
+  transport: { remote: 'origin', namespace: 'custom', intervalSeconds: 45, allowPublic: false },
   seats: { noticeEveryDays: 7 },
+  // shareTask: turn the first line of each prompt into the task summary teammates see and handoffs carry.
+  // Off by default: a prompt is often not something its author meant to broadcast.
+  presence: { shareTask: false },
 });
 
 export function readTeam(workTree) {
@@ -41,6 +46,7 @@ export function readConfig(workTree) {
     audit: merge(DEFAULT_CONFIG.audit, raw.audit),
     transport: merge(DEFAULT_CONFIG.transport, raw.transport),
     seats: merge(DEFAULT_CONFIG.seats, raw.seats),
+    presence: merge(DEFAULT_CONFIG.presence, raw.presence),
   };
   if (!COLLISION_MODES.has(cfg.collision.mode)) cfg.collision.mode = 'warn';
   if (!Number.isInteger(cfg.collision.windowMinutes) || cfg.collision.windowMinutes < 1) cfg.collision.windowMinutes = 30;
@@ -48,6 +54,9 @@ export function readConfig(workTree) {
   if (!Number.isInteger(cfg.collision.siblingWindowMinutes) || cfg.collision.siblingWindowMinutes < 0) cfg.collision.siblingWindowMinutes = 2;
   if (!Array.isArray(cfg.contracts.paths)) cfg.contracts.paths = [...DEFAULT_CONFIG.contracts.paths];
   if (!Array.isArray(cfg.audit.ignore)) cfg.audit.ignore = [];
+  // Only a literal true opts in: a typo or a string never turns sharing on.
+  cfg.transport.allowPublic = cfg.transport.allowPublic === true;
+  cfg.presence.shareTask = cfg.presence.shareTask === true;
   return cfg;
 }
 

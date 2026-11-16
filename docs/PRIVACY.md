@@ -15,7 +15,7 @@ Each developer publishes one small set of files under their own ref
 | File | Fields | Limits |
 | :-- | :-- | :-- |
 | `manifest.json` | handle, device id, schema version | handle matches `^[a-z0-9][a-z0-9-]{0,31}$`; device is 8 random hex characters |
-| `presence.json` | handle, device, branch name, task summary, area (a repo-relative directory), last-seen time, session start time, plugin version | task summary 140 characters |
+| `presence.json` | handle, device, branch name, task summary, area (a repo-relative directory), last-seen time, session start time, plugin version | task summary 140 characters; empty unless the team sets `presence.shareTask` (see below) |
 | `claims.json` | claimed repo-relative paths or task ids, time, note | 50 claims; note 140 characters |
 | `board.json` | task id, title, status, owner handle, dependency ids | 50 tasks; title 100 characters |
 | `contracts.json` | repo-relative paths of changed contract files and exported symbol names | 20 entries, 20 symbols each |
@@ -36,9 +36,20 @@ enforces author rules (`transport.realEmail` in
 of the state commits this plugin pushes, and nowhere else: it is not written to
 `identity.json` and never appears in a published file.
 
+## The task summary is opt-in
+
+The task summary is the first line of your most recent prompt, cut to 140
+characters and redacted. It is the only field that comes from what you typed
+to Claude, so it is off by default: unless `.synchrobuilder/config.json` sets
+`"presence": { "shareTask": true }`, the prompt hook records no prompt text at
+all, and both `presence.json` and the `task` and `done` fields of a staged
+handoff carry no prompt-derived text. What you pass to `handoff` yourself is
+published as you wrote it.
+
 ## What never leaves your machine
 
-- Your prompts, Claude's replies, transcripts, or any part of a conversation.
+- Your prompts, Claude's replies, transcripts, or any part of a conversation,
+  with the one opt-in exception above.
 - File contents, diffs, or code. The guard, audit and fix features read your
   files locally and report locally.
 - Environment variable values. The manifest and doctor deal in names only.
@@ -62,9 +73,19 @@ contents.
 
 ## Who can see what you publish
 
-Anyone who can fetch the repository can read the files above, including the
-public if the repository is public. `synchrobuilder doctor` warns when the
-remote's state refs are readable without credentials.
+Anyone who can fetch the repository can read the files above. On a public
+repository that is everyone, so the worker does not publish there by default:
+before publishing it asks GitHub, without credentials, whether the repository
+is public, and if it is, it keeps pulling teammates' state but pushes nothing
+of yours. `synchrobuilder status` says so. A team that wants presence on a
+public repository sets `"transport": { "allowPublic": true }` in
+`.synchrobuilder/config.json`.
+
+The check only exists for github.com remotes. Any other host, and any failure
+of the check itself, counts as not public and publishing goes ahead, so on
+GitLab, Bitbucket or a self-hosted server the visibility of the repository is
+yours to know. `synchrobuilder doctor` warns when the remote's state refs are
+readable without credentials.
 
 ## Website
 

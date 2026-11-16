@@ -17,6 +17,7 @@ import { readDraft, finalizeHandoff } from '../features/handoff.mjs';
 import { pluginVersion } from '../core/version.mjs';
 import { foldSnapshot, staleSnapshot } from './fold.mjs';
 import { Transport } from '../transport/interface.mjs';
+import { remoteVisibility } from '../transport/visibility.mjs';
 
 const PUBLISH_EVERY_MS = 60 * 1000;
 const BACKOFF = { minMs: 30_000, maxMs: 10 * 60_000, authMs: 15 * 60_000 };
@@ -79,12 +80,19 @@ async function makeTransport({ remoteUrl, remoteDir, handle, device, seat, mode,
   }
 }
 
+/** Why publishing must be held back, or null. Today the one reason is a public remote the team has not opted into. */
+export async function publishHold({ config, remoteUrl, remoteDir = null, now = Date.now(), fetchImpl = globalThis.fetch }) {
+  if (config && config.transport && config.transport.allowPublic === true) return null;
+  const visibility = await remoteVisibility(remoteUrl, { remoteDir, now, fetchImpl });
+  return visibility === 'public' ? 'public-remote' : null;
+}
+
 /** One sync cycle for every seat registered against this remote. Never throws.
  *
  *  Every registered working tree is published to its own ref. The previous version reassigned one `tree`
  *  variable inside the loop and published only whichever entry came last, so a second clone or worktree had
  *  its claims, presence and messages silently discarded. */
-export async function tick({ remoteDir, now = Date.now(), state = {}, mayPublish = true }) {
+export async function tick({ remoteDir, now = Date.now(), state = {}, mayPublish = true, fetchImpl = globalThis.fetch }) {
   const rp = paths.remote(remoteDir);
   const registry = readRegistry(remoteDir);
   const result = { published: false, pulled: false, writers: 0, mode: 'local', checkouts: registry.length, seats: 0, errorClass: null };
@@ -144,8 +152,16 @@ export async function tick({ remoteDir, now = Date.now(), state = {}, mayPublish
 
   // Publish each seat whose own tree changed, or any seat at all once the publish interval has elapsed.
   state.lastPublishedHash = (state.lastPublishedHash && typeof state.lastPublishedHash === 'object') ? state.lastPublishedHash : {};
+  // A public remote makes every published field world-readable. Hold back unless the team opted in; pulling
+  // stays on, so teammates who did opt in are still visible here.
+  let publishHeld = null;
+  if (mayPublish) {
+    publishHeld = await publishHold({ config, remoteUrl: seats[0].entry.remoteUrl || registry[0].remoteUrl, remoteDir, now, fetchImpl });
+    if (publishHeld && !state.loggedPublicHold) { logLine('worker', 'remote is public: not publishing (set transport.allowPublic to opt in)'); state.loggedPublicHold = true; }
+  }
+  if (publishHeld) { mayPublish = false; result.skippedPublish = 'remote is public; set transport.allowPublic in .synchrobuilder/config.json to publish'; result.publishHeld = publishHeld; }
   const due = !state.lastPublishAt || now - state.lastPublishAt >= PUBLISH_EVERY_MS;
-  if (!mayPublish) result.skippedPublish = 'another worker holds the lock';
+  if (!mayPublish && !publishHeld) result.skippedPublish = 'another worker holds the lock';
   let lastTransport = null;
   for (const s of seats) {
     const key = s.seat || 'default';
@@ -184,7 +200,7 @@ export async function tick({ remoteDir, now = Date.now(), state = {}, mayPublish
     writeJsonAtomic(rp.status, {
       mode: tstatus.mode, lastError: tstatus.lastError, lastErrorClass: tstatus.lastErrorClass,
       lastOkAt: tstatus.lastOkAt, nextAttemptAt: tstatus.nextAttemptAt, lastKnownSha: tstatus.lastKnownSha || {},
-      workerPid: process.pid, updatedAt: new Date(now).toISOString(),
+      publishHeld, workerPid: process.pid, updatedAt: new Date(now).toISOString(),
     });
   } catch { /* status is a convenience */ }
   return result;

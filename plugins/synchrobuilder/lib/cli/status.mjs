@@ -23,7 +23,10 @@ function transportLine(status, snapshot) {
   const ok = status && status.lastOkAt ? `last ok ${hhmmZ(status.lastOkAt)}` : 'never succeeded';
   const err = status && status.lastErrorClass ? `, last error ${String(status.lastErrorClass).replace(/[^a-z-]/g, '')}` : '';
   const pid = status && Number.isInteger(status.workerPid) ? `, worker pid ${status.workerPid}` : '';
-  return `Sync: mode ${mode}, ${ok}${err}${pid}`;
+  const held = status && status.publishHeld === 'public-remote'
+    ? '\nPublishing is paused: this remote is public, so your state would be world-readable. Set transport.allowPublic to true in .synchrobuilder/config.json to publish anyway.'
+    : '';
+  return `Sync: mode ${mode}, ${ok}${err}${pid}${held}`;
 }
 
 export async function run({ flags, cwd, stdout, stderr }) {

@@ -2,6 +2,7 @@
 import { hookContext, writeSession, readSession } from './context.mjs';
 import { appendEvent } from '../state/journal.mjs';
 import { LIMITS } from '../core/schema.mjs';
+import { readConfig } from '../core/config.mjs';
 import { logLine } from '../core/log.mjs';
 
 const HEARTBEAT_MS = 30_000;
@@ -17,8 +18,11 @@ export async function run(input) {
     try { appendEvent(c.loc.checkoutDir, { type: 'prompt', sid: c.sessionId }); } catch { /* fail open */ }
   }
   // The first line of the prompt is the developer's own words about what they are doing; it is redacted and capped
-  // by the journal writer before it can become the 140-character task summary teammates see.
-  if (typeof input.prompt === 'string' && input.prompt.trim()) {
+  // by the journal writer before it can become the 140-character task summary teammates see. It leaves this
+  // machine only when the team opted in with presence.shareTask: a prompt is not a status update by default.
+  let shareTask = false;
+  try { shareTask = readConfig(c.loc.workTree).presence.shareTask; } catch { shareTask = false; }
+  if (shareTask && typeof input.prompt === 'string' && input.prompt.trim()) {
     try { appendEvent(c.loc.checkoutDir, { type: 'task-summary', sid: c.sessionId, text: input.prompt.trim().split('\n')[0].slice(0, LIMITS.task) }); } catch { /* fail open */ }
   }
   try {
