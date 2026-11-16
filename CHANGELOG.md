@@ -5,6 +5,27 @@ versions follow semver. The plugin version in
 `plugins/synchrobuilder/.claude-plugin/plugin.json` is the cache key Claude
 Code uses to detect updates, so every release bumps it.
 
+## 0.2.1 - 2026-11-16
+
+Two defaults change, both toward publishing less. A team that relied on the
+old behaviour turns it back on in `.synchrobuilder/config.json`.
+
+### Changed
+- The task summary is opt-in (`presence.shareTask`, default false). It was the
+  first line of the developer's latest prompt, published to every teammate
+  and copied into staged handoffs, while `docs/PRIVACY.md` said prompts never
+  leave the machine. With the default, the prompt hook records no prompt text.
+- Nothing is published to a public GitHub repository unless the team sets
+  `transport.allowPublic`. The worker asks GitHub anonymously, caches the
+  answer for a day, keeps pulling, and `status` reports that publishing is
+  paused. Other hosts and a failed check are treated as not public.
+
+### Added
+- `tests/unit/manifest.test.mjs`, the direct test of the manifest validator
+  that `docs/VERIFICATION.md` listed as missing.
+- `tests/unit/privacy-defaults.test.mjs`.
+- `homepage` and `repository` in `plugin.json`.
+
 ## 0.2.0 - 2026-10-15
 
 Several Claude Code sessions can now work in one repository at the same time,
