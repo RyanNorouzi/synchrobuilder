@@ -57,6 +57,8 @@ function locateAs(d) {
   try { return paths.locate(d.clone); } finally { if (previous === undefined) delete process.env.SYNCHROBUILDER_HOME; else process.env.SYNCHROBUILDER_HOME = previous; }
 }
 function workerOnce(d) { const loc = locateAs(d); return run(d, 'worker', loc.checkoutDir, loc.remoteDir, '--once', '--json'); }
+/** One worker tick that must succeed. On failure the message carries the worker's own output, not just "1 !== 0". */
+function syncOk(d, why = '') { const w = workerOnce(d); assert.equal(w.code, 0, `${why ? `${why}: ` : ''}worker --once for ${d.name} failed: ${w.out}`); return w; }
 function leaseRefs() { return git(origin, 'for-each-ref', '--format=%(refname)', 'refs/synchrobuilder/lease1').stdout.split(/\r?\n/).filter(Boolean); }
 function holderOnRemote(ref) { const m = git(origin, 'log', '-1', '--format=%b', ref).stdout.match(/\{.*\}/); return m ? JSON.parse(m[0]) : null; }
 /** A refusal is cached for 20 s so a retry costs nothing. The test is not waiting 20 s to check a release. */
@@ -86,7 +88,7 @@ test('leases end to end across two machines', async (t) => {
 
   await t.test('before anyone else has been seen, an edit takes no remote lease', () => {
     assert.equal(hookRun(alice, 'session-start', { hook_event_name: 'SessionStart', source: 'startup' }).code, 0);
-    assert.equal(workerOnce(alice).code, 0);
+    syncOk(alice);
     const r = preEdit(alice, 'src/solo.js');
     assert.equal(r.code, 0, r.out);
     assert.equal(decision(r), null);
@@ -96,9 +98,9 @@ test('leases end to end across two machines', async (t) => {
 
   await t.test('once each has seen the other, the first to edit a file holds it on the remote', () => {
     assert.equal(hookRun(bob, 'session-start', { hook_event_name: 'SessionStart', source: 'startup' }).code, 0);
-    assert.equal(workerOnce(bob).code, 0);
-    assert.equal(workerOnce(alice).code, 0);
-    assert.equal(workerOnce(bob).code, 0);
+    syncOk(bob);
+    syncOk(alice);
+    syncOk(bob);
     const r = preEdit(alice, 'src/app.js');
     assert.equal(r.code, 0, r.out);
     assert.equal(decision(r), null, r.stdout);
@@ -121,7 +123,7 @@ test('leases end to end across two machines', async (t) => {
   });
 
   await t.test('status and lease show who holds what', () => {
-    assert.equal(workerOnce(bob).code, 0);
+    syncOk(bob);
     const status = JSON.parse(run(bob, 'status', '--json').stdout);
     const byPath = Object.fromEntries(status.leases.map((l) => [l.path, l]));
     assert.deepEqual([byPath['src/app.js'].handle, byPath['src/app.js'].where], ['alice', 'remote']);
@@ -148,7 +150,7 @@ test('leases end to end across two machines', async (t) => {
     assert.equal(run(alice, 'release', 'src/app.js').code, 0);
     assert.equal(decision(preEdit(bob, 'src/app.js')), 'deny', 'not until alice has synced');
     forgetRefusals(bob);
-    assert.equal(workerOnce(alice).code, 0);
+    syncOk(alice);
     const r = preEdit(bob, 'src/app.js');
     assert.equal(decision(r), null, r.stdout);
     assert.equal(holderOnRemote(leaseRefs().find((ref) => holderOnRemote(ref).path === 'src/app.js')).handle, 'bob');
@@ -160,7 +162,7 @@ test('leases end to end across two machines', async (t) => {
     const before = leaseRefs().map(holderOnRemote).filter((d) => d.handle === 'alice').length;
     assert.ok(before >= 1, 'alice holds at least the file she just took');
     assert.equal(hookRun(alice, 'session-end', { hook_event_name: 'SessionEnd', reason: 'exit' }).code, 0);
-    assert.equal(workerOnce(alice).code, 0);
+    syncOk(alice);
     assert.equal(leaseRefs().map(holderOnRemote).filter((d) => d.handle === 'alice').length, 0);
     forgetRefusals(bob);
     assert.equal(decision(preEdit(bob, 'src/alice-only.js')), null, 'and bob can take what she held');
@@ -175,7 +177,7 @@ test('leases end to end across two machines', async (t) => {
     assert.equal(forced.code, 0, forced.out);
     assert.equal(holderOnRemote(leaseRefs().find((ref) => holderOnRemote(ref).path === 'src/other.js')).handle, 'alice', forced.out);
     // Bob still believes he holds it until his worker tries to renew and finds the ref is no longer his.
-    assert.equal(workerOnce(bob).code, 0);
+    syncOk(bob);
     const r = preEdit(bob, 'src/other.js');
     assert.equal(decision(r), 'deny', r.stdout);
   });
@@ -184,7 +186,7 @@ test('leases end to end across two machines', async (t) => {
     const second = { name: 'alice-wt', home: alice.home, clone: path.join(root, 'clone-alice-wt') };
     assert.equal(git(alice.clone, 'worktree', 'add', '-q', '-b', 'wt', second.clone).code, 0);
     assert.equal(hookRun(second, 'session-start', { hook_event_name: 'SessionStart', source: 'startup' }).code, 0);
-    assert.equal(workerOnce(alice).code, 0, 'one tick so the new seat has an identity');
+    syncOk(alice, 'one tick so the new seat has an identity');
     assert.equal(decision(preEdit(alice, 'src/local.js')), null);
     const refused = preEdit(second, 'src/local.js');
     assert.equal(decision(refused), 'deny', refused.stdout);
