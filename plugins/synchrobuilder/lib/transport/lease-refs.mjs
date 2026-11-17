@@ -127,7 +127,10 @@ export class LeaseRefs {
       // exists", a bare "remote rejected"), and reading a lost race as a transport error would let both sides
       // through. So anything that is not plainly the network or credentials is reported as 'taken', and the
       // caller settles it by reading the ref: if nothing is there after all, it was policy, not a race.
-      if (!['network', 'auth', 'ssh-hostkey'].includes(r.errorClass) && !r.timedOut) return { ok: false, why: 'taken', errorClass: r.errorClass || 'unknown' };
+      // "[rejected]" and "[remote rejected]" are git's own per-ref verdicts. They are printed only when the push
+      // got as far as a decision about this ref, so they settle it whatever else the text happens to contain.
+      const refVerdict = /\[(?:remote )?rejected\]/.test(`${r.stderr}\n${r.stdout}`);
+      if (refVerdict || (!['network', 'auth', 'ssh-hostkey'].includes(r.errorClass) && !r.timedOut)) return { ok: false, why: 'taken', errorClass: refVerdict ? 'rejected' : (r.errorClass || 'unknown') };
       logLine('leases', `put ${hash.slice(0, 8)}: ${r.errorClass}`);
       return { ok: false, why: 'error', errorClass: r.errorClass || 'unknown' };
     } catch (err) {

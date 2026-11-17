@@ -140,7 +140,7 @@ test('leases end to end across two machines', async (t) => {
       const denied = [a, b].filter((r) => decision(r) === 'deny').length;
       assert.equal(denied, 1, `round ${round}: expected exactly one refusal, got ${denied}\nalice: ${a.stdout}\nbob: ${b.stdout}`);
     }
-    assert.equal(leaseRefs().length, 7);
+    assert.equal(leaseRefs().length, 7, 'app.js, other.js and one per race');
   });
 
   await t.test('releasing a file frees it for the other machine after one sync', () => {
@@ -155,13 +155,15 @@ test('leases end to end across two machines', async (t) => {
   });
 
   await t.test('ending a session lets go of everything it held', () => {
+    // Who won each race above is a coin flip, so alice takes one file of her own to be sure she holds something.
+    assert.equal(decision(preEdit(alice, 'src/alice-only.js')), null);
     const before = leaseRefs().map(holderOnRemote).filter((d) => d.handle === 'alice').length;
-    assert.ok(before >= 1, 'alice still holds the races she won');
+    assert.ok(before >= 1, 'alice holds at least the file she just took');
     assert.equal(hookRun(alice, 'session-end', { hook_event_name: 'SessionEnd', reason: 'exit' }).code, 0);
     assert.equal(workerOnce(alice).code, 0);
     assert.equal(leaseRefs().map(holderOnRemote).filter((d) => d.handle === 'alice').length, 0);
     forgetRefusals(bob);
-    assert.equal(decision(preEdit(bob, 'src/race-1.js')), null);
+    assert.equal(decision(preEdit(bob, 'src/alice-only.js')), null, 'and bob can take what she held');
   });
 
   await t.test('a person can take a held file over with --force, and the old holder is refused from then on', () => {
@@ -171,7 +173,7 @@ test('leases end to end across two machines', async (t) => {
     assert.match(plain.out, /held by bob on another machine/);
     const forced = run(alice, 'lease', 'take', 'src/other.js', '--force');
     assert.equal(forced.code, 0, forced.out);
-    assert.equal(holderOnRemote(leaseRefs().find((ref) => holderOnRemote(ref).path === 'src/other.js')).handle, 'alice');
+    assert.equal(holderOnRemote(leaseRefs().find((ref) => holderOnRemote(ref).path === 'src/other.js')).handle, 'alice', forced.out);
     // Bob still believes he holds it until his worker tries to renew and finds the ref is no longer his.
     assert.equal(workerOnce(bob).code, 0);
     const r = preEdit(bob, 'src/other.js');

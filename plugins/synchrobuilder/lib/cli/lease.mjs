@@ -62,9 +62,17 @@ export async function run({ flags, args, cwd, stdout, stderr }) {
   const opts = { loc: c.loc, identity: c.identity, sid: '', rel, now: c.now, ttlMs, idleMs, store, deadline: Date.now() + 30000 };
   let r = acquireLease(opts);
   let forced = false;
-  if (r.status === 'denied' && flags.force) { r = forceLease(opts); forced = true; }
+  let was = null;
+  if (r.status === 'denied' && flags.force) { was = r.holder; r = forceLease(opts); forced = true; }
   kick(c);
-  if (flags.json) { stdout.write(JSON.stringify({ ok: r.status === 'held' || r.status === 'acquired', forced, ...r }, null, 2) + '\n'); return r.status === 'denied' ? 1 : 0; }
+  // Forcing a file away from another machine has one job, and that is replacing the lease on the remote. If
+  // that did not happen, the other machine still holds the file, and saying "took over" would be a lie.
+  const forceFailed = forced && was && !was.local && r.remote !== 'ok';
+  if (flags.json) { stdout.write(JSON.stringify({ ok: (r.status === 'held' || r.status === 'acquired') && !forceFailed, forced, ...r }, null, 2) + '\n'); return r.status === 'denied' || forceFailed ? 1 : 0; }
+  if (forceFailed) {
+    stderr.write(`Could not take ${rel} over on the remote (${r.reason || 'unknown'}): ${was.handle} on another machine still holds it. Nothing changed for them. Try again, or check "synchrobuilder status" for the state of the sync.\n`);
+    return 1;
+  }
   if (r.status === 'denied') {
     const h = r.holder;
     stderr.write(`${rel} is held by ${h.local ? 'another agent on this machine' : `${h.handle} on another machine`} (since ${fmtAgo(c.now - Date.parse(h.at))}). Pass --force to take it anyway; their next edit to it will be refused.\n`);

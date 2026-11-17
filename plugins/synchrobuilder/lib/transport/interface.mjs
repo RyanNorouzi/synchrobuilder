@@ -24,7 +24,11 @@ export class Transport {
 export function classifyGitError(text) {
   const t = String(text || '');
   if (/Host key verification failed|REMOTE HOST IDENTIFICATION HAS CHANGED/i.test(t)) return 'ssh-hostkey';
-  if (/Authentication failed|Permission denied \(publickey|could not read Username|403|401|terminal prompts disabled|Invalid username or (password|token)/i.test(t)) return 'auth';
+  // The HTTP status is matched in the phrase git prints it in, never as bare digits. A bare /403|401/ also
+  // matches the object ids and paths in ordinary output: "! [rejected] 9c4031f... (stale info)" was classified
+  // as an authentication failure whenever the commit id happened to contain those digits, which for a lease
+  // turned a lost race into "could not reach the remote" (found by a test that failed one run in ten).
+  if (/Authentication failed|Permission denied \(publickey|could not read Username|returned error: 40[13]|HTTP 40[13]|terminal prompts disabled|Invalid username or (password|token)/i.test(t)) return 'auth';
   if (/cannot lock ref|failed to update ref|is at .* but expected|stale info|non-fast-forward|fetch first|failed to lock/i.test(t)) return 'rejected';
   if (/denying non-fast-forward|deletion prohibited|protected branch|pre-receive hook declined|GH006|GH013|refusing to (update|create)|push declined|remote rejected/i.test(t)) return 'policy';
   if (/couldn't find remote ref|no such ref|unknown revision|not our ref/i.test(t)) return 'no-ref';

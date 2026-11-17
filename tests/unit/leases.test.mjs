@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { makeRig, NOW } from './features-rig.mjs';
-import { acquireLease, remoteLeasesWanted, hashOfPath, GRACE_MS } from '../../plugins/synchrobuilder/lib/features/leases.mjs';
+import { acquireLease, forceLease, remoteLeasesWanted, hashOfPath, GRACE_MS } from '../../plugins/synchrobuilder/lib/features/leases.mjs';
 import { listRecords, readRecord, releaseRecords, withTable } from '../../plugins/synchrobuilder/lib/features/lease-table.mjs';
 import { leaseHash, validLease, encodeLease, decodeLease } from '../../plugins/synchrobuilder/lib/transport/lease-refs.mjs';
 import { leaseGuard } from '../../plugins/synchrobuilder/lib/features/lease-guard.mjs';
@@ -12,6 +12,10 @@ import { fakeStore, seat, SEAT_A, SEAT_B, MIN } from './lease-rig.mjs';
 
 const take = (s, rel, extra = {}) => acquireLease({ loc: s.loc, identity: s.identity, sid: s.sid, rel, now: NOW, ...extra });
 const asBob = (s) => ({ ...s, identity: { handle: 'bob', device: 'bbbbbbbb', seat: SEAT_B } });
+function heldByBob(store, rel, seatId = SEAT_B) {
+  const doc = { v: 1, handle: 'bob', device: 'bbbbbbbb', seat: seatId, path: rel, at: new Date(NOW - MIN).toISOString(), exp: new Date(NOW + 9 * MIN).toISOString() };
+  store.refs.set(hashOfPath(rel), { sha: 'f'.repeat(40), doc: validLease(doc, NOW) });
+}
 
 test('the first agent to touch a file holds it; a second agent on the same machine is refused', async () => {
   const rig = await makeRig({});
@@ -130,6 +134,32 @@ test('a remote that refuses lease refs is not mistaken for a lost race, and is l
   assert.equal(wanted(NOW + 16 * MIN), true);
 });
 
+test('a forced takeover replaces whoever holds the remote lease, retries a push that was turned down, and says so when it cannot', async () => {
+  const rig = await makeRig({});
+  const a = seat(rig, SEAT_A);
+  const force = (store, rel) => forceLease({ loc: a.loc, identity: a.identity, sid: a.sid, rel, now: NOW, store });
+  const store = fakeStore();
+  heldByBob(store, 'k.ts');
+  assert.equal(take(a, 'k.ts', { store }).status, 'denied');
+  assert.deepEqual(force(store, 'k.ts'), { status: 'acquired', remote: 'ok' });
+  assert.equal(store.refs.get(hashOfPath('k.ts')).doc.handle, 'alice');
+
+  // The holder renews between our read and our push, once: the first compare-and-swap loses, the second wins.
+  const flaky = fakeStore();
+  heldByBob(flaky, 'm.ts');
+  const realPut = flaky.put;
+  let turnedDown = 0;
+  flaky.put = (hash, doc, expect) => (turnedDown++ === 0 ? { ok: false, why: 'taken', errorClass: 'rejected' } : realPut(hash, doc, expect));
+  assert.deepEqual(force(flaky, 'm.ts'), { status: 'acquired', remote: 'ok' });
+  assert.equal(flaky.refs.get(hashOfPath('m.ts')).doc.handle, 'alice');
+
+  const closed = fakeStore();
+  heldByBob(closed, 'n.ts');
+  closed.put = () => ({ ok: false, why: 'taken', errorClass: 'rejected' });
+  assert.deepEqual(force(closed, 'n.ts'), { status: 'acquired', remote: 'failed', reason: 'contended' });
+  assert.equal(closed.refs.get(hashOfPath('n.ts')).doc.handle, 'bob', 'and the remote is left exactly as it was');
+});
+
 test('remote leases are wanted only with a teammate elsewhere, a working hidden namespace, and no public hold', async () => {
   const rig = await makeRig({});
   const identity = { handle: 'alice', device: 'aaaaaaaa', seat: SEAT_A };
@@ -168,10 +198,6 @@ test('lease documents: round trip, and a hostile one is dropped rather than repa
   assert.match(leaseHash('f:a'), /^[a-f0-9]{40}$/);
 });
 
-function heldByBob(store, rel, seatId = SEAT_B) {
-  const doc = { v: 1, handle: 'bob', device: 'bbbbbbbb', seat: seatId, path: rel, at: new Date(NOW - MIN).toISOString(), exp: new Date(NOW + 9 * MIN).toISOString() };
-  store.refs.set(hashOfPath(rel), { sha: 'f'.repeat(40), doc: validLease(doc, NOW) });
-}
 
 test('the guard: deny by default, warn when asked, silent when off, and never over an unlisted handle', async () => {
   const store = fakeStore();

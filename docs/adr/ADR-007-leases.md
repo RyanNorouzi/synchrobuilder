@@ -187,6 +187,14 @@ skill that wraps it is not model-invocable.
   code never uses `+` on a push.
 - `tests/unit/leases.test.mjs`, `tests/unit/lease-upkeep.test.mjs`: the rules
   above against a fake compare-and-swap store, with the clock passed in.
+- `tests/unit/lease-refs.test.mjs`: the compare-and-swap contract itself,
+  against a real bare remote.
+- A lost race must never be read as a transport failure, because a transport
+  failure lets the edit through. The shared classifier once did exactly that
+  when a commit id contained `401` or `403`; the lease code now takes git's
+  own `[rejected]` verdict first and treats anything that is not plainly the
+  network or credentials as "someone has it", to be settled by reading the
+  ref.
 - `tests/e2e/leases.test.mjs`: two homes, two clones, one real bare remote,
   the real hooks, CLI and worker. Includes five rounds of two pre-edit hooks
   started at the same moment on the same new file, with exactly one refusal in

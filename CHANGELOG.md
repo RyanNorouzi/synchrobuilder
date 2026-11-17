@@ -34,7 +34,8 @@ refused. `docs/adr/ADR-007-leases.md` has the design.
 - `leases` in `.synchrobuilder/config.json`: `mode` (`enforce`, `warn`,
   `off`), `remote` (`auto`, `always`, `never`), `ttlMinutes`, `idleMinutes`.
 - `tests/e2e/leases.test.mjs`, `tests/unit/leases.test.mjs`,
-  `tests/unit/lease-upkeep.test.mjs`, and `scripts/hosted-lease-check.mjs`
+  `tests/unit/lease-upkeep.test.mjs`, `tests/unit/lease-refs.test.mjs`, and
+  `scripts/hosted-lease-check.mjs`
   for running the flow against a hosted remote.
 
 ### Changed
@@ -43,6 +44,17 @@ refused. `docs/adr/ADR-007-leases.md` has the design.
   Its timeout is 10 seconds and its watchdog 8, up from 5 and 0.4. Every
   failure still lets the edit through. Set `leases.mode` to `warn` or `off`
   for the old behaviour.
+
+### Fixed
+- A rejected push was sometimes classified as an authentication failure. The
+  classifier matched a bare `401` or `403` anywhere in git's output, and a
+  rejection prints the commit id, which contains those digits about one time
+  in ten. The transport then backed off for fifteen minutes as if credentials
+  were wrong, and for a lease it would have turned a lost race into "could
+  not reach the remote", letting both sides through. The HTTP status is now
+  matched only in the phrase git prints it in, and the lease code reads git's
+  own `[rejected]` verdict first. Found by a lease test that failed one run in
+  ten.
 
 ## 0.2.1 - 2026-11-16
 
