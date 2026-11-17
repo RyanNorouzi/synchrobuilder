@@ -139,7 +139,18 @@ Before a teammate's Claude edits a file you claimed or are actively editing, it 
 - Pillar: Multiplayer
 - Phase: 6
 - Status: available
-- Summary: Release a claim.
+- Summary: Release a claim, and let go of the file if you were holding it.
+
+## lease
+- Slash: /synchrobuilder:lease [list|take <path> [--force]|release [path]]
+- Short form: /lease
+- CLI: npx synchrobuilder lease [list|take <path> [--force]|release [path]]
+- Pillar: Multiplayer
+- Phase: 6
+- Status: available
+- Summary: See who is holding which file right now, let go of one early, or take one over.
+
+A lease is taken for you the moment a Claude starts editing a file, and it is exclusive: while it is held, another Claude's edit to that file is refused and told to work on something else. It ends when the file has not been touched for 15 minutes, when the session ends, or when it is released. `take --force` is for a person, to free a file whose holder is not coming back.
 
 ## notify
 - Slash: /synchrobuilder:notify <handle> <message>

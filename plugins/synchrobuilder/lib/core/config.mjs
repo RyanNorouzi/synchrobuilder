@@ -1,6 +1,6 @@
 // Reads the two committed team files. Both are optional; defaults keep everything working in a repo that has neither.
 //   .synchrobuilder/team.json   { version: 1, members: { alice: { name, emails: [] } } }
-//   .synchrobuilder/config.json { version: 1, collision: { mode: 'warn'|'ask'|'block', windowMinutes: 30, siblingWindowMinutes: 2 }, contracts: { paths: [globs] }, audit: { ignore: [globs], strict: false }, transport: { remote: 'origin', namespace: 'custom'|'branch', allowPublic: false }, presence: { shareTask: false } }
+//   .synchrobuilder/config.json { version: 1, collision: { mode: 'warn'|'ask'|'block', windowMinutes: 30, siblingWindowMinutes: 2 }, contracts: { paths: [globs] }, audit: { ignore: [globs], strict: false }, transport: { remote: 'origin', namespace: 'custom'|'branch', allowPublic: false }, presence: { shareTask: false }, leases: { mode: 'enforce'|'warn'|'off', remote: 'auto'|'always'|'never', ttlMinutes: 10, idleMinutes: 15 } }
 import path from 'node:path';
 import { readJson } from './fsx.mjs';
 import { isHandle } from './schema.mjs';
@@ -22,7 +22,14 @@ export const DEFAULT_CONFIG = Object.freeze({
   // shareTask: turn the first line of each prompt into the task summary teammates see and handoffs carry.
   // Off by default: a prompt is often not something its author meant to broadcast.
   presence: { shareTask: false },
+  // Leases (ADR-007): an edit takes an exclusive, short-lived hold on the file, atomically. mode 'enforce' refuses
+  // an edit to a file another live agent holds, 'warn' only says so, 'off' takes no leases. remote 'auto' uses
+  // the git remote only once a teammate on another machine has been seen; 'never' keeps leases on this machine.
+  leases: { mode: 'enforce', remote: 'auto', ttlMinutes: 10, idleMinutes: 15 },
 });
+
+export const LEASE_MODES = new Set(['enforce', 'warn', 'off']);
+export const LEASE_REMOTE = new Set(['auto', 'always', 'never']);
 
 export function readTeam(workTree) {
   const raw = readJson(path.join(workTree, '.synchrobuilder', 'team.json'), null);
@@ -47,6 +54,7 @@ export function readConfig(workTree) {
     transport: merge(DEFAULT_CONFIG.transport, raw.transport),
     seats: merge(DEFAULT_CONFIG.seats, raw.seats),
     presence: merge(DEFAULT_CONFIG.presence, raw.presence),
+    leases: merge(DEFAULT_CONFIG.leases, raw.leases),
   };
   if (!COLLISION_MODES.has(cfg.collision.mode)) cfg.collision.mode = 'warn';
   if (!Number.isInteger(cfg.collision.windowMinutes) || cfg.collision.windowMinutes < 1) cfg.collision.windowMinutes = 30;
@@ -57,6 +65,11 @@ export function readConfig(workTree) {
   // Only a literal true opts in: a typo or a string never turns sharing on.
   cfg.transport.allowPublic = cfg.transport.allowPublic === true;
   cfg.presence.shareTask = cfg.presence.shareTask === true;
+  if (!LEASE_MODES.has(cfg.leases.mode)) cfg.leases.mode = 'enforce';
+  if (!LEASE_REMOTE.has(cfg.leases.remote)) cfg.leases.remote = 'auto';
+  // The TTL bounds how long a crashed or sleeping holder can block anyone; the floor keeps renewals from becoming chatter.
+  if (!Number.isInteger(cfg.leases.ttlMinutes) || cfg.leases.ttlMinutes < 2 || cfg.leases.ttlMinutes > 120) cfg.leases.ttlMinutes = 10;
+  if (!Number.isInteger(cfg.leases.idleMinutes) || cfg.leases.idleMinutes < 1 || cfg.leases.idleMinutes > 24 * 60) cfg.leases.idleMinutes = 15;
   return cfg;
 }
 

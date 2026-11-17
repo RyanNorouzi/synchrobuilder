@@ -15,7 +15,9 @@ together:
   Claude aware of what the others are doing. State travels through the git
   remote you already have; nothing is hosted. Two sessions in two worktrees of
   one clone count as two participants as well, so they see each other's
-  claims.
+  claims. And two Claudes never change one file at the same moment: the first
+  to start editing a file holds it, and the other is told to do something else
+  until it is free ([how](docs/adr/ADR-007-leases.md)).
 
 ## Status
 

@@ -63,6 +63,9 @@ runs on the Linux CI job.
 | Worker wake-ups | A kick that lands while a tick is still running wakes the worker immediately instead of being swallowed for a whole interval | `tests/unit/lock.test.mjs` |
 | The detached worker, end to end | A session start spawns a real detached worker that takes the lock and publishes to the remote; a second worker refuses to start beside it; the other developer's worker pulls the claim; the session ends and the worker finishes a last tick, delivers that final claim and exits releasing its lock; neither repository is written to. Green on ubuntu, macOS and Windows, Node 20 and 24, on 2026-10-15 | `tests/e2e/worker.test.mjs` |
 | Multiplayer end to end | Two developers, one bare remote, no Claude: presence, a claim producing a collision warning, a message round trip, a handoff reaching the other developer's digest, offline queueing and recovery, and neither repository touched | `tests/e2e/multiplayer.test.mjs` |
+| Leases, the rules | Against a fake compare-and-swap store with the clock passed in: first taker holds, a second seat on the machine is refused, a lease stops counting when its session ends or it goes idle or is released, a dead process holds nothing, the table mutex recovers from an abandoned lock and a busy table lets the edit through, one winner on the remote and the loser gives its local slot back, takeover only after expiry plus grace, a machine that slept is refused on waking, an unreachable remote never blocks, remote leases only with a teammate elsewhere and no public hold, hostile lease documents dropped, deny by default and warn or off on request, an unlisted handle never enforced | `tests/unit/leases.test.mjs` |
+| Leases, upkeep | Renewal at half life by compare-and-swap; refs deleted on session end, idle and release; a release made offline waits for the remote; a lease taken offline is pushed later; a lease that changed hands is flagged and the next edit refused; refs unrenewed for an hour are collected and live ones never | `tests/unit/lease-upkeep.test.mjs` |
+| Leases, end to end | Two homes, two clones, one real bare remote, the real hooks, CLI and worker: no lease ref while a developer is alone; the first editor's lease ref on the remote; the other machine's hook prints a deny naming the holder; five rounds of two pre-edit hooks started at the same moment on the same new file, exactly one refusal each; `release` and session end free the file after one sync; `lease take --force` and the old holder refused at its next sync; two worktrees on one machine refused with no sync and freed at session end with no worker tick; `leases.mode = off` takes and refuses nothing. Run on Windows on 2026-11-16 | `tests/e2e/leases.test.mjs` |
 | Two agents in two worktrees, end to end | Two worktrees of one clone on one machine with one git identity, against a local bare remote, driving the real hooks, CLI and worker: the two trees are two seats with two state directories sharing one remote directory, both register and each publishes its own ref (`ls-remote` shows exactly two, one per seat), a claim made in one tree reaches the other tree's pre-edit hook with no worker tick in between, a file nobody holds produces no warning, `warn` mode stays advisory, `block` mode returns a deny naming `release` and `status`, releasing the claim lifts it at once, a sibling whose session has ended warns but does not block, and neither worktree is written to. Run on macOS on 2026-10-15 | `tests/e2e/worktree-agents.test.mjs` |
 
 ## Verified by running the real Claude Code CLI
@@ -138,6 +141,18 @@ configuration.
    `--uninstall` removed both; and with stdin not a terminal and no `--yes` it refused
    to act and said why instead of hanging.
 
+## Verified against a hosted remote
+
+`node scripts/hosted-lease-check.mjs <repo root> <remote url>` drives the
+lease flow from two homes and two clones against a real remote. Against a
+private GitHub repository from Windows on 2026-11-16, eight of eight checks
+passed: both developers see each other; the first edit takes a lease inside
+the hook's budget (1,728 ms); a second edit to that file is local only
+(194 ms); the other machine is refused (2,150 ms) and refused again from the
+cache (173 ms); four of four rounds of simultaneous first edits had exactly
+one winner (hooks took 1.7 to 2.9 s); a released file is free after one sync;
+and ending both sessions left no lease refs behind.
+
 ## Verified by hand
 
 - `synchrobuilder audit` on this repository reports 100/100 and `--strict` exits 0.
@@ -161,6 +176,11 @@ Nothing below is claimed anywhere as working.
 | Public-repository detection on hosts other than GitHub | Only github.com can be asked without credentials; every other host is treated as not public | A per-host check, if those hosts expose one |
 | Force-push survival, a poisoned ref, and a mirror push that deletes the namespace | The hosted GitHub check confirmed `--force-with-lease` replaces the writer's own ref, but no test drives a hostile or destructive remote | An end-to-end test that corrupts and deletes the namespace between ticks |
 | Package managers resolved without a shell on Windows | The resolution code exists and is unit tested with a fake layout; no real Windows run | Windows CI |
+| Claude Code acting on a lease refusal | The tests assert the hook's `permissionDecision: "deny"` output and its reason. That the CLI refuses the edit, and that the agent then does other work instead of retrying or going around the hook with a shell command, has not been driven through a real session | Two sessions through `claude -p` on one file |
+| Leases on GitLab, Bitbucket and Azure DevOps | Only GitHub and a local bare remote were available. The mechanism is plain git compare-and-swap, but whether those hosts accept the `refs/synchrobuilder/lease1/` namespace is unknown | `scripts/hosted-lease-check.mjs` against each |
+| Leases on macOS and Linux | Written and run on Windows only so far | CI |
+| Leases under clock skew between machines | The margins (one minute before expiry for the holder, two minutes after for everyone else, renewal at half life) are asserted with one clock. No test runs two machines whose clocks disagree | A test that offsets one side's clock |
+| A file changed through the shell | `sed`, a formatter or a script edits a file without the Edit tool, so no hook runs and no lease is taken | Not fixable in a hook; documented as a limit |
 | Claude Code acting on a `block` decision | The test asserts the hook's `permissionDecision: "deny"` output, not that the CLI refuses the edit when it receives one. The shape comes from the hooks documentation | A session driven through `claude -p` with `collision.mode` set to `block` |
 | Two separate clones of one remote on one machine | The worktree test covers two working trees of one clone. Nothing registers two independent clones against one remote, which is the other case the per-seat registry and per-seat publishing were written for | Extend the worktree test with a second clone of the same remote |
 

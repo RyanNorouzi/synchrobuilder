@@ -1,11 +1,11 @@
 ---
-description: Release a claim.
+description: Release a claim, and let go of the file if you were holding it.
 argument-hint: "[path or task]"
 disable-model-invocation: true
 allowed-tools: Bash(node *), PowerShell(node *)
 ---
 
-Release a claim.
+Release a claim, and let go of the file if it was held.
 
 Run: node "${CLAUDE_PLUGIN_ROOT}/bin/synchrobuilder.mjs" release $ARGUMENTS
 Report the result.

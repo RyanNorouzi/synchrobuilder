@@ -18,7 +18,9 @@
 | A hostile ref tries to block everyone's sync | One ref per writer; writers never read remote state before writing; a poisoned ref affects only its own entry, which is dropped (`adr/ADR-001-transport.md`) |
 | Impersonation by someone with push access | Not prevented in v1; the committer email is compared with the team file and mismatches are labelled and excluded from prompts. Signed state commits are a possible v2 hardening |
 | Secrets in shared text | Redaction on write and on read; env var values are never read into state |
-| A hook stalls or crashes and blocks the developer | Every hook exits 0 with no output on any error, has an internal watchdog, and reads local files only; Claude Code's own timeouts are set low |
+| A hook stalls or crashes and blocks the developer | Every hook exits 0 with no output on any error and has an internal watchdog. All but one read local files only; the pre-edit hook may push one lease ref, under its own deadline, and lets the edit through if that fails (`adr/ADR-007-leases.md`) |
+| Someone with push access holds a file by writing a lease, to stop others editing it | A lease is honoured only until its expiry, at most 24 hours ahead and normally 10 minutes, so it must be renewed to persist; a holder whose handle is not in `team.json` is reported and never enforced; `leases.mode = warn` removes enforcement; a person can run `lease take <path> --force` |
+| A hostile lease document | Validated on read, never repaired: handle, device, seat and timestamps must match their rules or the lease counts as unreadable and is replaceable; the path shown to Claude is the local one, never the remote's |
 | Claude Code injects hook output that a third-party hook could spoof | Out of our control; the wrapper's nonce and prefixes make our block hard to forge, and the human sees a one-line `systemMessage` for messages |
 | Terminal escape injection via the status line or system messages | Human-visible surfaces render validated identifiers in fixed templates only |
 | Supply chain | No runtime dependencies, no build step, no lockfile in the plugin (so Claude Code's automatic install is skipped); plain ESM you can read |

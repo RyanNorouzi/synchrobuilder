@@ -82,10 +82,16 @@ Run: ${CLI} claim $ARGUMENTS
 Report the result.
 
 ${COMMON}`,
-  release: `Release a claim.
+  release: `Release a claim, and let go of the file if it was held.
 
 Run: ${CLI} release $ARGUMENTS
 Report the result.
+
+${COMMON}`,
+  lease: `Show who is holding which file right now, let go of one, or take one over.
+
+Run: ${CLI} lease $ARGUMENTS
+Relay the output. Use "take <path> --force" only when the user asked for it in this conversation: it takes a file away from whoever holds it.
 
 ${COMMON}`,
   notify: `Send a short message to a teammate. It lands in their next prompt, labelled as untrusted teammate data.

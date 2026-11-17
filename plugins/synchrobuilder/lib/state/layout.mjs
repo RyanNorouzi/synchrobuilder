@@ -19,6 +19,11 @@
 //     snapshot.json                    { schemaVersion, fetchedAt, transport, writers: [...] }   (worker writes atomically; hooks read)
 //     status.json                      { mode, lastError, lastErrorClass, lastOkAt, nextAttemptAt, workerPid }
 //     worker.lock/                     directory lock with pid + heartbeat files
+//     leases/<hash>.json               this machine's lease table, one file per held key, shared by every seat (ADR-007)
+//     leases/.lock/                    mutex for lease table mutations, held for microseconds
+//     leases.json                      the worker's last view of every lease on the remote (status, lease list)
+//     lease-net.json                   breaker: when the remote last failed for a lease, so hooks stop trying for a minute
+//   checkouts/<checkoutKey>/lease-denied.json   refusals remembered for 20 s, so an immediate retry costs no round trip
 import path from 'node:path';
 import { homeDir } from '../core/paths.mjs';
 

@@ -22,6 +22,14 @@ Each developer publishes one small set of files under their own ref
 | `messages/<id>.json` | from, to, time, text | 400 characters, 6 lines |
 | `handoffs/<id>.json` | from, time, branch, task, done, files changed, interfaces changed, decisions, blockers, next steps, for | list caps per field (see `adr/ADR-005-teammate-message-security.md`) |
 
+A file being edited is also held by a lease (`adr/ADR-007-leases.md`): one more
+ref per held file, `refs/synchrobuilder/lease1/<hash>`, whose commit message
+carries handle, device, seat, the repo-relative path, when it was taken and
+when it expires. The ref name is a hash of the lower-cased path. Lease refs
+are written only when a teammate on another machine has been seen, are never
+written to a public repository that has not opted in, and are deleted when the
+file is let go.
+
 Every free-text field passes secret redaction before it is written to the
 journal, and again before it is published: private keys, GitHub, Anthropic,
 OpenAI, AWS, Slack and Stripe token shapes, high-entropy strings next to
@@ -67,6 +75,10 @@ repository per remote, the local snapshot of teammates' state, your own
 journal of events (edited paths, claims, messages you sent), session
 records, logs, and the handoff draft. `npx synchrobuilder clean` removes it.
 Nothing is written inside your repository or its `.git`.
+
+The pre-edit hook is the one hook that talks to the network, and only to that
+same git remote: the first time a file is edited it pushes the lease ref
+described above. Every other hook reads local files only.
 
 Logs contain error messages and timings. They never contain prompts or file
 contents.

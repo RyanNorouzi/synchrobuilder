@@ -1,5 +1,5 @@
 {
-  "description": "Synchrobuilder: portability guard, team digest, collision warnings, handoff staging. Every hook is a Node process in exec form; all fail open.",
+  "description": "Synchrobuilder: portability guard, team digest, file leases, collision warnings, handoff staging. Every hook is a Node process in exec form; all fail open. The pre-edit hook can refuse an edit to a file another live agent holds.",
   "hooks": {
     "SessionStart": [
       { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/run.mjs", "session-start"], "timeout": 5, "statusMessage": "Synchrobuilder: reading team state" } ] }
@@ -8,7 +8,7 @@
       { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/run.mjs", "prompt"], "timeout": 5 } ] }
     ],
     "PreToolUse": [
-      { "matcher": "Edit|Write|NotebookEdit", "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/run.mjs", "pre-edit"], "timeout": 5 } ] }
+      { "matcher": "Edit|Write|NotebookEdit", "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/run.mjs", "pre-edit"], "timeout": 10 } ] }
     ],
     "PostToolUse": [
       { "matcher": "Edit|Write|NotebookEdit", "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/run.mjs", "post-edit"], "timeout": 10 } ] }
