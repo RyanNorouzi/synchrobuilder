@@ -193,13 +193,24 @@ export function forceLease({ loc, identity, sid = '', rel, now = Date.now(), ttl
     }, null);
     if (!rec) return { status: 'open', reason: 'table-busy', remote: 'skipped' };
     if (!store) return { status: 'acquired', remote: 'skipped' };
-    const cur = store.read(hash, { now });
-    if (!cur.ok) return { status: 'acquired', remote: 'failed', reason: cur.errorClass || 'error' };
     const doc = { handle: identity.handle, device: identity.device, seat: identity.seat || null, path: rel, at: rec.at, exp: new Date(now + ttlMs).toISOString() };
-    const put = store.put(hash, doc, cur.sha || '');
-    if (!put.ok) return { status: 'acquired', remote: 'failed', reason: put.why === 'taken' ? 'contended' : (put.errorClass || 'error') };
-    patchRecord(remoteDir, hash, rec.nonce, { remote: { sha: put.sha, exp: doc.exp }, contested: false });
-    return { status: 'acquired', remote: 'ok' };
+    // Read what is there and replace exactly that. A live holder may renew between the read and the push, and
+    // a busy remote can turn one push down for reasons of its own, so try a few times before giving up. This
+    // runs from a command a person typed, not from a hook, so it can afford to.
+    let reason = 'contended';
+    for (let round = 0; round < 4; round++) {
+      const cur = store.read(hash, { now });
+      if (!cur.ok) { reason = cur.errorClass || 'error'; break; }
+      const put = store.put(hash, doc, cur.sha || '');
+      if (put.ok) {
+        patchRecord(remoteDir, hash, rec.nonce, { remote: { sha: put.sha, exp: doc.exp }, contested: false });
+        return { status: 'acquired', remote: 'ok' };
+      }
+      if (put.why !== 'taken') { reason = put.errorClass || 'error'; break; }
+      reason = put.errorClass && put.errorClass !== 'rejected' ? put.errorClass : 'contended';
+    }
+    logLine('leases', `force: remote lease for ${hash.slice(0, 8)} not replaced: ${reason}`);
+    return { status: 'acquired', remote: 'failed', reason };
   } catch (err) {
     logLine('leases', `force threw: ${err && err.message}`);
     return { status: 'open', reason: 'error', remote: 'failed' };
