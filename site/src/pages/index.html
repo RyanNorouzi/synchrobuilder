@@ -64,7 +64,8 @@
         <p>One small git ref per person. Nothing merges, nothing is hosted, nothing is signed up for.</p>
         <ul>
           <li><b>A session digest</b> on start: who is active, which claims touch your files, messages for you, handoffs since you left.</li>
-          <li><b>Collision warnings</b> before an edit, at most once per file every thirty minutes, never blocking.</li>
+          <li><b>File leases.</b> The first Claude to start editing a file holds it. Another Claude's edit to that file is refused and it is told to work on something else, on the same machine at once and across machines by an atomic push to your git remote.</li>
+          <li><b>Collision warnings</b> before an edit to a file a teammate claimed or recently changed, at most once per file every thirty minutes.</li>
           <li><b>Claims, messages, a task board and structured handoffs</b> built from what your session already records.</li>
           <li><b>Offline is normal.</b> Work queues locally and reaches the team on the next successful push.</li>
         </ul>

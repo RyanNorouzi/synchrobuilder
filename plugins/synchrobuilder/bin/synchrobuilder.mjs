@@ -16,6 +16,7 @@ const COMMANDS = {
   status: { module: 'status.mjs', summary: 'Who is active and what the sync transport is doing', usage: 'status [--json]' },
   claim: { module: 'claim.mjs', summary: 'Claim a path or task', usage: 'claim <path or task-id> [--note text]' },
   release: { module: 'release.mjs', summary: 'Release a claim', usage: 'release [path or task-id]' },
+  lease: { module: 'lease.mjs', summary: 'See who holds which file, let go, or take one over', usage: 'lease [list] | take <path> [--force] | release [path] [--json]' },
   notify: { module: 'notify.mjs', summary: 'Message a teammate', usage: 'notify <handle> <message...>' },
   board: { module: 'board.mjs', summary: 'Shared task board', usage: 'board [list | add <title> [--deps a,b] | take <id> [--force] | done <id> | next]' },
   handoff: { module: 'handoff.mjs', summary: 'Write a handoff note', usage: 'handoff [handle] [--draft] | --confirm <draft id> [--done "a; b"] [--next ...] [--for a,b]' },
@@ -37,7 +38,7 @@ function commandHelp(name, spec) {
 }
 
 async function main() {
-  const { flags, positionals } = parseArgs(process.argv.slice(2), { booleans: ['json', 'strict', 'yes', 'dry-run', 'help', 'version', 'refresh', 'quiet'] });
+  const { flags, positionals } = parseArgs(process.argv.slice(2), { booleans: ['json', 'strict', 'yes', 'dry-run', 'help', 'version', 'refresh', 'quiet', 'force'] });
   if (flags.version) { process.stdout.write(pluginVersion() + '\n'); return 0; }
   const name = positionals[0];
   if (!name || flags.help && !name) { process.stdout.write(usage() + '\n'); return name ? 0 : 1; }

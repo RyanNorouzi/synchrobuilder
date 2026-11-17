@@ -154,6 +154,7 @@ export async function tick({ remoteDir, now = Date.now(), state = {}, mayPublish
   state.lastPublishedHash = (state.lastPublishedHash && typeof state.lastPublishedHash === 'object') ? state.lastPublishedHash : {};
   // A public remote makes every published field world-readable. Hold back unless the team opted in; pulling
   // stays on, so teammates who did opt in are still visible here.
+  const holdsLock = mayPublish;
   let publishHeld = null;
   if (mayPublish) {
     publishHeld = await publishHold({ config, remoteUrl: seats[0].entry.remoteUrl || registry[0].remoteUrl, remoteDir, now, fetchImpl });
@@ -203,6 +204,25 @@ export async function tick({ remoteDir, now = Date.now(), state = {}, mayPublish
       publishHeld, workerPid: process.pid, updatedAt: new Date(now).toISOString(),
     });
   } catch { /* status is a convenience */ }
+
+  // Lease upkeep (ADR-007). Only the worker that holds the lock does it, so two workers never renew one lease.
+  if (holdsLock && config && config.leases && config.leases.mode !== 'off') {
+    try {
+      const { maintainLeases } = await import('./leases.mjs');
+      const { remoteLeasesWanted } = await import('../features/leases.mjs');
+      const identity = { ...seats[0].identity, seat: seats[0].seat };
+      const wanted = remoteLeasesWanted({
+        config, identity, remoteDir, now, snapshot: readJson(rp.snapshot, null),
+        status: { mode: tstatus.mode, publishHeld, lastOkAt: tstatus.lastOkAt },
+      });
+      let store = null;
+      if (wanted) {
+        const { LeaseRefs } = await import('../transport/lease-refs.mjs');
+        store = new LeaseRefs({ remoteUrl: seats[0].entry.remoteUrl || registry[0].remoteUrl, remoteDir, handle: identity.handle });
+      }
+      result.leases = maintainLeases({ remoteDir, now, store, ttlMs: config.leases.ttlMinutes * 60_000, idleMs: config.leases.idleMinutes * 60_000 });
+    } catch (err) { logLine('worker', `lease upkeep failed: ${err && err.message}`); }
+  }
   return result;
 }
 

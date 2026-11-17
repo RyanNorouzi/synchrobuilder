@@ -18,7 +18,10 @@ import { logLine } from '../lib/core/log.mjs';
 const VERBS = {
   'session-start': { module: 'session-start.mjs', budgetMs: 400 },
   'prompt': { module: 'prompt.mjs', budgetMs: 400 },
-  'pre-edit': { module: 'pre-edit.mjs', budgetMs: 400 },
+  // pre-edit is the one hook that may reach the network: the first edit to a file takes a lease on the remote
+  // when a teammate on another machine exists (ADR-007). That is one push, once per file, and it has its own
+  // 6.5 s deadline inside this budget. Every other pre-edit, and every pre-edit for a developer alone, is local.
+  'pre-edit': { module: 'pre-edit.mjs', budgetMs: 8000 },
   'post-edit': { module: 'post-edit.mjs', budgetMs: 1500 },
   'stop': { module: 'stop.mjs', budgetMs: 2000 },
   'session-end': { module: 'session-end.mjs', budgetMs: 1000 },

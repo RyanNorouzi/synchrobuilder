@@ -5,6 +5,45 @@ versions follow semver. The plugin version in
 `plugins/synchrobuilder/.claude-plugin/plugin.json` is the cache key Claude
 Code uses to detect updates, so every release bumps it.
 
+## 0.3.0 - 2026-11-16
+
+Two Claude Code sessions can no longer both start on the same file. This is
+the release that makes simultaneous work safe rather than merely visible, and
+it changes a default: an edit to a file another live agent is editing is now
+refused. `docs/adr/ADR-007-leases.md` has the design.
+
+### Added
+- Leases. The moment an agent starts to edit a file, the pre-edit hook takes
+  an exclusive, short-lived hold on it. A second agent's edit to that file is
+  refused, with a reason that says who holds it, to do other work, and when
+  the hold ends. It ends when the file is untouched for 15 minutes, when the
+  session ends, or on `release`.
+- Same machine: a shared lease table under a mutex, so agents in sibling
+  worktrees are refused in the time a file read takes, with no sync.
+- Across machines: one ref per held file, `refs/synchrobuilder/lease1/<hash>`,
+  created by compare-and-swap push, so machines that have never spoken race
+  for a file with exactly one winner. No server. Used only once a teammate on
+  another machine has been seen, never on a public repository that has not
+  opted in, and never in branch mode.
+- The worker renews live leases, deletes the refs of ended ones, notices a
+  lease that changed hands, and collects refs nobody has renewed for an hour.
+- `lease` command: `lease` lists who holds what, `lease release [path]` lets
+  go early, `lease take <path> --force` is for a person to free a file whose
+  holder is not coming back. `status` shows held files, and `release` now also
+  lets go of the file.
+- `leases` in `.synchrobuilder/config.json`: `mode` (`enforce`, `warn`,
+  `off`), `remote` (`auto`, `always`, `never`), `ttlMinutes`, `idleMinutes`.
+- `tests/e2e/leases.test.mjs`, `tests/unit/leases.test.mjs`,
+  `tests/unit/lease-upkeep.test.mjs`, and `scripts/hosted-lease-check.mjs`
+  for running the flow against a hosted remote.
+
+### Changed
+- The pre-edit hook can refuse an edit by default, and can reach the network:
+  one push, the first time a file is edited, when a remote teammate exists.
+  Its timeout is 10 seconds and its watchdog 8, up from 5 and 0.4. Every
+  failure still lets the edit through. Set `leases.mode` to `warn` or `off`
+  for the old behaviour.
+
 ## 0.2.1 - 2026-11-16
 
 Two defaults change, both toward publishing less. A team that relied on the

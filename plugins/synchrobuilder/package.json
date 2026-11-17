@@ -1,6 +1,6 @@
 {
   "name": "synchrobuilder",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Multiplayer Claude Code for teams on any laptop. No server, safe by design.",
   "type": "module",
   "license": "MIT",

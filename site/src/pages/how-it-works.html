@@ -165,7 +165,7 @@
           <tbody>
             <tr><td><code>SessionStart</code></td><td>all</td><td>Injects the team digest: who is active, claims that touch your area, messages for you, handoffs since you left. Starts the background worker if none holds the lock.</td></tr>
             <tr><td><code>UserPromptSubmit</code></td><td>all</td><td>Delivers your inbox alongside the prompt, plus a one-line notice to you so you know something arrived.</td></tr>
-            <tr><td><code>PreToolUse</code></td><td><code>Edit|Write|NotebookEdit</code></td><td>Collision check against teammates' claims. Warns by default; teams can opt into ask. At most once per file per 30 minutes. Never blocks.</td></tr>
+            <tr><td><code>PreToolUse</code></td><td><code>Edit|Write|NotebookEdit</code></td><td>Takes a lease on the file, and refuses the edit if another live agent holds it (the one hook that can refuse, and the one that may push to the remote, once per file). Then the collision check against teammates' claims: warns by default, teams can opt into ask, at most once per file per 30 minutes.</td></tr>
             <tr><td><code>PostToolUse</code></td><td><code>Edit|Write|NotebookEdit</code></td><td>Portability guard on the file just edited, and contract change alerts, returned as context in the same turn.</td></tr>
             <tr><td><code>Stop</code></td><td>all</td><td>Stages the handoff incrementally into a local journal, and relaunches the worker if it died.</td></tr>
             <tr><td><code>SessionEnd</code></td><td>all</td><td>Marks the session closed and leaves the final push to the worker. The budget here is short, so nothing slow happens in this hook.</td></tr>

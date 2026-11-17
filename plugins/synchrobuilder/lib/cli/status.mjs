@@ -3,6 +3,7 @@
 import path from 'node:path';
 import { readJson } from '../core/fsx.mjs';
 import { homeDir } from '../core/paths.mjs';
+import { leaseRows } from '../features/lease-view.mjs';
 import { resolveContext, fmtAgo, fmtShortAge, terminalSafe, hhmmZ } from '../features/common.mjs';
 import { activeWriters } from '../features/presence.mjs';
 import { readJournalTail } from '../features/journal-write.mjs';
@@ -43,6 +44,7 @@ export async function run({ flags, cwd, stdout, stderr }) {
   const claims = ownClaims(events, now);
   const tasks = foldBoard(c.snapshot, events, now);
   const notice = seatsNotice(c.snapshot, now, path.join(homeDir(), 'seats.json'), { noticeEveryDays: c.config.seats.noticeEveryDays });
+  const leases = c.loc.remoteDir && c.config.leases.mode !== 'off' ? leaseRows({ remoteDir: c.loc.remoteDir, identity: c.identity, now, idleMs: c.config.leases.idleMinutes * 60_000 }) : [];
   if (flags.json) {
     const out = {
       repo: c.loc.repoName, identity: c.identity, remoteUrl: c.loc.remoteUrl ? 'configured' : null,
@@ -50,6 +52,7 @@ export async function run({ flags, cwd, stdout, stderr }) {
       transport: status,
       teammates: rows.map((r) => ({ handle: r.handle, device: r.device, seat: r.writer.seat || null, where: r.writer.local ? 'here' : 'remote', live: r.writer.live !== false, branch: r.branch, area: r.area, task: terminalSafe(r.task, 140), ageMs: r.ageMs, tier: r.tier, verified: r.verified, claims: r.writer.claims.length })),
       agentsHere: here.length,
+      leases: leases.map(({ hash, ...l }) => l),
       myClaims: claims, board: { counts: summarizeBoard(tasks), next: nextTask(tasks), tasks: tasks.map((t) => ({ ...t, title: terminalSafe(t.title, 100) })) }, seatsNotice: notice,
     };
     stdout.write(JSON.stringify(out, null, 2) + '\n');
@@ -74,6 +77,12 @@ export async function run({ flags, cwd, stdout, stderr }) {
     ]), ['HANDLE', 'WHERE', 'BRANCH', 'AREA', 'SEEN', 'VERIFIED', 'TASK']));
   } else lines.push('Teammates: none seen in the last 24 h.');
   lines.push('');
+  if (leases.length) {
+    lines.push(`Held files (${leases.length}): an edit to one of these by anyone else is ${c.config.leases.mode === 'enforce' ? 'refused' : 'warned about'} until it is let go.`);
+    lines.push(table(leases.slice(0, 30).map((l) => [l.path, l.where === 'you' ? 'you' : l.where === 'here' ? 'agent here' : l.handle, fmtAgo(now - Date.parse(l.at))]), ['FILE', 'HELD BY', 'SINCE']));
+    if (leases.length > 30) lines.push(`  ... and ${leases.length - 30} more ("synchrobuilder lease" lists them all)`);
+    lines.push('');
+  }
   lines.push(claims.length ? `My claims: ${claims.map((cl) => `${describeTarget(cl)} (${fmtAgo(now - Date.parse(cl.at))})`).join(', ')}` : 'My claims: none.');
   const counts = summarizeBoard(tasks);
   const next = nextTask(tasks);
